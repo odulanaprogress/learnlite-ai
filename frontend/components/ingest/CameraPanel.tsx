@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, ImageUp, TriangleAlert } from "lucide-react";
+import { compressImage } from "../../lib/compressImage";
 
 type Status = "idle" | "starting" | "live" | "denied" | "unavailable";
 
@@ -90,14 +91,15 @@ export default function CameraPanel({ onSubmit }: Props) {
     );
   }
 
-  function handlePicked(event: React.ChangeEvent<HTMLInputElement>) {
-    const picked = event.target.files?.[0];
-    if (picked) {
-      stopCamera();
-      setStatus("idle");
-      setPhoto(picked);
-    }
-    event.target.value = "";
+  async function handlePicked(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.target;
+    const picked = input.files?.[0];
+    input.value = "";
+    if (!picked) return;
+
+    stopCamera();
+    setStatus("idle");
+    setPhoto(await compressImage(picked));
   }
 
   function retake() {
