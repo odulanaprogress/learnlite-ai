@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+
 export const metadata: Metadata = {
   title: "LearnLite",
   description: "Turn your lecture notes into clearer learning resources",

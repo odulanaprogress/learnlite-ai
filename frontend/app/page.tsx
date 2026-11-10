@@ -1,9 +1,13 @@
+import Header from "../components/layout/Header";
 import IngestPicker from "../components/ingest/IngestPicker";
 
 export default function Home() {
   return (
-    <main className="min-h-screen">
-      <IngestPicker />
-    </main>
+    <>
+      <Header />
+      <main>
+        <IngestPicker />
+      </main>
+    </>
   );
 }
