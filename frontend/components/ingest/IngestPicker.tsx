@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { FileText, Camera, PenLine, type LucideIcon } from "lucide-react";
 import UploadPanel from "../ingest/UploadPanel";
+import CameraPanel from "../ingest/CameraPanel";
+import TextPanel from "../ingest/TextPanel";
 
 type Mode = "upload" | "snap" | "text";
 
@@ -74,8 +76,14 @@ export default function IngestPicker() {
         {mode === "upload" && (
           <UploadPanel onSubmit={(file) => console.log("Chosen file:", file)} />
         )}
-        {mode === "snap" && <p>Camera panel goes here</p>}
-        {mode === "text" && <p>Text panel goes here</p>}
+        {mode === "snap" && (
+          <CameraPanel
+            onSubmit={(file) => console.log("Captured photo:", file)}
+          />
+        )}
+        {mode === "text" && (
+          <TextPanel onSubmit={(text) => console.log("Typed notes:", text)} />
+        )}
       </div>
     </section>
   );
