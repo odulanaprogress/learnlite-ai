@@ -1,8 +1,12 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, status
 from pydantic import ValidationError
 
 from app.generation.study_generator import generate_study_pack
 from app.schemas.study_pack import StudyPackRequest, StudyPackResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/v1/study",
@@ -39,6 +43,7 @@ async def create_study_pack(
         ) from exc
 
     except Exception as exc:
+        logger.exception("Unexpected study pack generation error")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Study pack generation failed. Please try again.",
