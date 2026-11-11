@@ -1,10 +1,14 @@
-from groq import AsyncGroq
+import logging
+
+from groq import AsyncGroq, BadRequestError
 from pydantic import ValidationError
 
 from app.config import get_settings
 from app.generation.grounding import validate_semantic_grounding
 from app.generation.quality import validate_study_pack
 from app.schemas.study_pack import StudyPackRequest, StudyPackResponse
+
+logger = logging.getLogger(__name__)
 
 
 async def generate_study_pack(
@@ -100,9 +104,9 @@ Correct ALL of these issues in the new response:
 Regenerate the complete study pack. Do not simply repeat the previous output.
 """
 
-            response = await client.chat.completions.create(
-                model=settings.groq_text_model,
-                messages=[
+            completion_args = {
+                "model": settings.groq_text_model,
+                "messages": [
                     {
                         "role": "system",
                         "content": (
@@ -115,15 +119,37 @@ Regenerate the complete study pack. Do not simply repeat the previous output.
                         "content": prompt + retry_instruction,
                     },
                 ],
-                response_format={"type": "json_object"},
-                temperature=0.2,
-                max_tokens=6000,
-            )
+                "temperature": 0.2,
+                "max_tokens": 6000,
+            }
+
+            try:
+                response = await client.chat.completions.create(
+                    **completion_args,
+                    response_format={"type": "json_object"},
+                )
+            except BadRequestError as exc:
+                if getattr(exc, "code", None) != "json_validate_failed":
+                    raise
+
+                logger.warning(
+                    "Groq JSON-mode validation failed on attempt %s; "
+                    "retrying without constrained JSON mode.",
+                    attempt + 1,
+                )
+
+                response = await client.chat.completions.create(
+                    **completion_args,
+                )
 
             content = response.choices[0].message.content
 
             if not content:
                 issues = ["The AI model returned an empty response."]
+                logger.warning(
+                    "Study pack generation returned an empty response on attempt %s",
+                    attempt + 1,
+                )
                 continue
 
             try:
@@ -132,11 +158,21 @@ Regenerate the complete study pack. Do not simply repeat the previous output.
                 issues = [
                     f"Invalid response structure: {exc.error_count()} schema errors."
                 ]
+                logger.warning(
+                    "Study pack schema validation failed on attempt %s: %s",
+                    attempt + 1,
+                    issues,
+                )
                 continue
 
             issues = validate_study_pack(study_pack, request)
 
             if issues:
+                logger.warning(
+                    "Study pack quality validation failed on attempt %s: %s",
+                    attempt + 1,
+                    issues,
+                )
                 continue
 
             issues = await validate_semantic_grounding(
@@ -146,8 +182,19 @@ Regenerate the complete study pack. Do not simply repeat the previous output.
                 model=settings.groq_text_model,
             )
 
-            if not issues:
+            if issues:
+                logger.warning(
+                    "Study pack semantic grounding failed on attempt %s: %s",
+                    attempt + 1,
+                    issues,
+                )
+            else:
                 return study_pack
+
+        logger.error(
+            "Study pack generation exhausted retries. Final issues: %s",
+            issues,
+        )
 
         raise ValueError(
             "The AI could not produce a study pack that passed quality "
