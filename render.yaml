@@ -41,3 +41,4 @@ services:
         value: openai/gpt-oss-20b
       - key: GROQ_VISION_MODEL
         value: qwen/qwen3.8-27b
+

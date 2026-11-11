@@ -17,6 +17,18 @@ router.post("/generate", optionalAuth, async (req: Request, res: Response) => {
       return;
     }
 
+    if (studyReq.flashcard_count !== undefined) {
+      studyReq.flashcard_count = Math.max(5, studyReq.flashcard_count);
+    } else {
+      studyReq.flashcard_count = 8;
+    }
+
+    if (studyReq.quiz_count !== undefined) {
+      studyReq.quiz_count = Math.max(3, studyReq.quiz_count);
+    } else {
+      studyReq.quiz_count = 5;
+    }
+
     const generated = await aiServiceClient.generateStudyPack(studyReq);
     const userId = req.user?.id || studyReq.userId;
     const saved = storageService.saveStudyPack({ ...generated, userId });

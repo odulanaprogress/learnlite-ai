@@ -5,7 +5,7 @@ dotenv.config();
 export const config = {
   port: parseInt(process.env.PORT || "4000", 10),
   nodeEnv: process.env.NODE_ENV || "development",
-  aiServiceUrl: process.env.AI_SERVICE_URL || "http://localhost:8000",
+  aiServiceUrl: process.env.AI_SERVICE_URL || "https://learnlite-ai-service.onrender.com",
   groqApiKey: process.env.GROQ_API_KEY || "",
   groqTextModel: process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-20b",
   groqVisionModel: process.env.GROQ_VISION_MODEL || "qwen/qwen3.8-27b",

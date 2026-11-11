@@ -34,7 +34,7 @@ export class AIServiceClient {
       const response = await fetch(`${this.baseUrl}/health`, {
         method: "GET",
         headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(4000),
+        signal: AbortSignal.timeout(8000),
       });
 
       if (response.ok) {

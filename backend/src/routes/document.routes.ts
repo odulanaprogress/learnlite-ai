@@ -95,8 +95,8 @@ router.post(
   async (req: Request, res: Response) => {
     const sessionId = (req.headers["x-session-id"] as string) || (req.body.sessionId as string);
     const difficulty = (req.body.difficulty || "intermediate") as StudyDifficulty;
-    const flashcardCount = parseInt(req.body.flashcardCount || "8", 10);
-    const quizCount = parseInt(req.body.quizCount || "5", 10);
+    const flashcardCount = Math.max(5, parseInt(req.body.flashcardCount || "8", 10));
+    const quizCount = Math.max(3, parseInt(req.body.quizCount || "5", 10));
 
     const emitProgress = (stage: string, progress: number, message: string) => {
       if (sessionId) {
