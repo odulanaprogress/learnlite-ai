@@ -1,0 +1,43 @@
+services:
+  # 1. Node.js & TypeScript Backend API Gateway
+  - type: web
+    name: learnlite-ai-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: AI_SERVICE_URL
+        fromService:
+          type: web
+          name: learnlite-ai-service
+          property: host
+      - key: GROQ_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+
+  # 2. Python FastAPI Semantic Grounding & OCR AI Service
+  - type: web
+    name: learnlite-ai-service
+    runtime: python
+    plan: free
+    rootDir: ai-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_TEXT_MODEL
+        value: openai/gpt-oss-20b
+      - key: GROQ_VISION_MODEL
+        value: qwen/qwen3.8-27b
