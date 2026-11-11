@@ -1,6 +1,6 @@
 import logging
 
-from groq import AsyncGroq
+from groq import AsyncGroq, BadRequestError
 from pydantic import ValidationError
 
 from app.config import get_settings
@@ -104,9 +104,9 @@ Correct ALL of these issues in the new response:
 Regenerate the complete study pack. Do not simply repeat the previous output.
 """
 
-            response = await client.chat.completions.create(
-                model=settings.groq_text_model,
-                messages=[
+            completion_args = {
+                "model": settings.groq_text_model,
+                "messages": [
                     {
                         "role": "system",
                         "content": (
@@ -119,10 +119,28 @@ Regenerate the complete study pack. Do not simply repeat the previous output.
                         "content": prompt + retry_instruction,
                     },
                 ],
-                response_format={"type": "json_object"},
-                temperature=0.2,
-                max_tokens=6000,
-            )
+                "temperature": 0.2,
+                "max_tokens": 6000,
+            }
+
+            try:
+                response = await client.chat.completions.create(
+                    **completion_args,
+                    response_format={"type": "json_object"},
+                )
+            except BadRequestError as exc:
+                if getattr(exc, "code", None) != "json_validate_failed":
+                    raise
+
+                logger.warning(
+                    "Groq JSON-mode validation failed on attempt %s; "
+                    "retrying without constrained JSON mode.",
+                    attempt + 1,
+                )
+
+                response = await client.chat.completions.create(
+                    **completion_args,
+                )
 
             content = response.choices[0].message.content
 
