@@ -1,7 +1,9 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import { getLibraryMaterials } from "@/lib/library";
 import Link from "next/link";
 import {
     ArrowLeft,
@@ -15,7 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const cards = [
+const defaultCards = [
     {
         question: "What is the basic unit of life?",
         answer: "The cell is the basic structural and functional unit of all living organisms.",
@@ -44,7 +46,39 @@ const cards = [
 ];
 
 export default function FlashcardsPage() {
+    const [cards, setCards] = useState(defaultCards);
+    const [isCustom, setIsCustom] = useState(false);
     const [currentIndex, setCurrentIndex] = useState(0);
+
+    useEffect(() => {
+        const pack = api.getLatestStudyPack();
+        if (pack && pack.flashcards && pack.flashcards.length > 0) {
+            setCards(pack.flashcards.map(c => ({
+                question: c.question,
+                answer: c.answer,
+                category: pack.filename || "Study Notes"
+            })));
+            setIsCustom(true);
+            return;
+        }
+
+        getLibraryMaterials().then(materials => {
+            const res = materials.find(m => m.resourceType === "Flashcards" && m.textContent);
+            if (res && res.textContent) {
+                try {
+                    const parsed = JSON.parse(res.textContent);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        setCards(parsed.map((c: any) => ({
+                            question: c.question,
+                            answer: c.answer,
+                            category: res.name.replace(/ Flashcards.*$/, "") || "Study Notes"
+                        })));
+                        setIsCustom(true);
+                    }
+                } catch {}
+            }
+        }).catch(() => {});
+    }, []);
     const [flipped, setFlipped] = useState(false);
 
     const currentCard = cards[currentIndex];

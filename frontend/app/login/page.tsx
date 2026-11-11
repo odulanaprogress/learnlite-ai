@@ -1,9 +1,9 @@
-
 "use client";
 
 import { useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
     GraduationCap,
     Eye,
@@ -11,25 +11,51 @@ import {
     BookOpen,
     ArrowRight,
     Sparkles,
+    Loader2,
+    Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 export default function LoginPage() {
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [guestLoading, setGuestLoading] = useState(false);
 
-    function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    async function handleSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
 
-        // Frontend validation
         if (!email.trim() || !password.trim()) {
             toast.error("Please enter your email and password.");
             return;
         }
 
-        // Backend authentication will be connected later
-        toast.info("Login API integration is pending.");
+        try {
+            setLoading(true);
+            const res = await api.auth.login({ email: email.trim(), password });
+            toast.success(`Welcome back, ${res.user.name}!`);
+            router.push("/dashboard");
+        } catch (err: any) {
+            toast.error(err.message || "Failed to sign in. Please verify your credentials.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleGuestLogin() {
+        try {
+            setGuestLoading(true);
+            const res = await api.auth.guest();
+            toast.success("Welcome! Instant guest session ready.");
+            router.push("/dashboard");
+        } catch (err: any) {
+            toast.error(err.message || "Failed to start guest session.");
+        } finally {
+            setGuestLoading(false);
+        }
     }
 
     return (
@@ -58,59 +84,83 @@ export default function LoginPage() {
                         Welcome back to a smarter way to learn.
                     </h1>
 
-                    <p className="mt-6 text-lg leading-8 text-gray-600">
-                        Your lecture notes, summaries and learning
-                        resources are waiting for you. Pick up where
-                        you left off.
+                    <p className="mt-6 text-lg leading-relaxed text-gray-700">
+                        Turn lecture notes into clear summaries, smart flashcards and
+                        quizzes in seconds. Built for high performance on low bandwidth.
                     </p>
+                </div>
 
-                    <div className="mt-10 rounded-2xl border border-white bg-white/80 p-6">
-                        <div className="flex items-center gap-3">
-                            <BookOpen className="text-teal-700" size={24} />
-                            <p className="font-semibold text-gray-900">
-                                Learn at your own pace
-                            </p>
-                        </div>
+                {/* Bottom decorative stats */}
+                <div className="relative z-10 flex items-center gap-6 border-t border-teal-200/50 pt-8">
+                    <div>
+                        <p className="text-2xl font-bold text-gray-900">100%</p>
+                        <p className="text-sm text-gray-600">Offline Study Ready</p>
+                    </div>
 
-                        <p className="mt-3 text-sm leading-6 text-gray-600">
-                            Understand difficult topics, practise with
-                            flashcards and build confidence in your studies.
-                        </p>
+                    <div className="h-8 w-px bg-teal-200" />
+
+                    <div>
+                        <p className="text-2xl font-bold text-gray-900">&lt; 10s</p>
+                        <p className="text-sm text-gray-600">AI Note Generation</p>
                     </div>
                 </div>
 
-                <p className="text-sm text-gray-500">
-                    Learn smarter, not harder.
-                </p>
+                {/* Background circles */}
+                <div className="absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-teal-100/60 blur-3xl pointer-events-none" />
+                <div className="absolute -top-24 -right-24 h-96 w-96 rounded-full bg-teal-200/40 blur-3xl pointer-events-none" />
             </section>
 
-            {/* Right Side - Login Form */}
-            <section className="flex min-h-screen items-center justify-center px-5 py-12 sm:px-10">
+            {/* Right Side - Form */}
+            <section className="flex flex-col justify-center px-6 py-12 sm:px-12 md:px-16 lg:px-14 xl:px-24">
 
-                <div className="w-full max-w-md">
+                <div className="mx-auto w-full max-w-md">
 
-                    {/* Mobile Logo */}
-                    <Link href="/" className="mb-12 flex items-center gap-2 lg:hidden">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
-                            <GraduationCap size={23} />
-                        </span>
+                    {/* Mobile Brand */}
+                    <div className="mb-8 lg:hidden">
+                        <Link href="/" className="flex w-fit items-center gap-2">
+                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
+                                <GraduationCap size={22} />
+                            </span>
 
-                        <span className="text-xl font-bold text-gray-900">
-                            LearnLite<span className="text-teal-600">.</span>
-                        </span>
-                    </Link>
+                            <span className="text-2xl font-bold text-gray-900">
+                                LearnLite<span className="text-teal-600">.</span>
+                            </span>
+                        </Link>
+                    </div>
 
+                    {/* Header */}
                     <div>
-                        <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-                            Welcome back!
-                        </h2>
-
-                        <p className="mt-3 text-sm leading-6 text-gray-600">
-                            Sign in to continue your learning journey.
+                        <h2 className="text-3xl font-bold text-gray-900">Sign in</h2>
+                        <p className="mt-2 text-sm text-gray-600">
+                            Enter your credentials to continue to your workspace.
                         </p>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="mt-9 space-y-6">
+                    {/* 1-Click Guest Button */}
+                    <div className="mt-6">
+                        <button
+                            type="button"
+                            onClick={handleGuestLogin}
+                            disabled={guestLoading || loading}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-5 py-3.5 text-sm font-semibold text-gray-800 transition hover:bg-stone-50"
+                        >
+                            {guestLoading ? (
+                                <Loader2 size={18} className="animate-spin text-teal-600" />
+                            ) : (
+                                <Zap size={18} className="text-amber-500" />
+                            )}
+                            Instant Campus Guest Mode (No password required)
+                        </button>
+                    </div>
+
+                    <div className="my-6 flex items-center gap-3">
+                        <div className="h-px flex-1 bg-stone-200" />
+                        <span className="text-xs uppercase text-gray-400">or sign in with email</span>
+                        <div className="h-px flex-1 bg-stone-200" />
+                    </div>
+
+                    {/* Form */}
+                    <form onSubmit={handleSubmit} className="space-y-5">
 
                         {/* Email */}
                         <div>
@@ -177,16 +227,26 @@ export default function LoginPage() {
                         {/* Submit */}
                         <button
                             type="submit"
-                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-4 font-semibold text-white transition-colors hover:bg-teal-700"
+                            disabled={loading || guestLoading}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-4 font-semibold text-white transition-colors hover:bg-teal-700 disabled:opacity-60"
                         >
-                            Sign In
-                            <ArrowRight size={18} />
+                            {loading ? (
+                                <>
+                                    <Loader2 size={18} className="animate-spin" />
+                                    Signing in...
+                                </>
+                            ) : (
+                                <>
+                                    Sign In
+                                    <ArrowRight size={18} />
+                                </>
+                            )}
                         </button>
 
                     </form>
 
                     <p className="mt-8 text-center text-sm text-gray-600">
-                        Dont have an account?{" "}
+                        Don&apos;t have an account?{" "}
                         <Link
                             href="/signup"
                             className="font-semibold text-teal-700 hover:text-teal-800"
@@ -195,12 +255,10 @@ export default function LoginPage() {
                         </Link>
                     </p>
 
-                    <p className="mt-12 text-center text-xs text-gray-400">
-                        ©  LearnLite AI. All rights reserved.
-                    </p>
-
                 </div>
+
             </section>
+
         </main>
     );
 }

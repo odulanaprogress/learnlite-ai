@@ -1,22 +1,23 @@
-
 "use client";
 
 import { useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
     GraduationCap,
     Eye,
     EyeOff,
-    Mail,
-    Lock,
-    User,
     ArrowRight,
+    Sparkles,
     CheckCircle2,
+    Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 export default function SignupPage() {
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -24,8 +25,10 @@ export default function SignupPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [institution, setInstitution] = useState("");
+    const [loading, setLoading] = useState(false);
 
-    function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    async function handleSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
 
         if (
@@ -43,12 +46,27 @@ export default function SignupPage() {
             return;
         }
 
-        if (password.length < 8) {
-            toast.error("Password must be at least 8 characters.");
+        if (password.length < 6) {
+            toast.error("Password must be at least 6 characters.");
             return;
         }
 
-        toast.info("Signup API integration is pending.");
+        try {
+            setLoading(true);
+            const res = await api.auth.register({
+                name: fullName.trim(),
+                email: email.trim().toLowerCase(),
+                password,
+                institution: institution.trim() || undefined,
+            });
+
+            toast.success(`Welcome to LearnLite, ${res.user.name}!`);
+            router.push("/dashboard");
+        } catch (err: any) {
+            toast.error(err.message || "Failed to create account. Please try again.");
+        } finally {
+            setLoading(false);
+        }
     }
 
     return (
@@ -66,230 +84,210 @@ export default function SignupPage() {
                         </span>
                     </Link>
 
-                    <div className="max-w-lg">
-                        <div className="mb-6 inline-flex rounded-full bg-white px-4 py-2 text-sm font-medium text-teal-700">
-                            Your learning journey starts here
-                        </div>
+                    <div className="max-w-md">
+                        <span className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-teal-800">
+                            <Sparkles size={14} />
+                            Personalized learning assistant
+                        </span>
 
-                        <h1 className="text-4xl font-bold leading-tight text-gray-900 xl:text-5xl">
-                            Learn smarter.
-                            <br />
-                            Understand better.
-                            <br />
-                            Go further.
+                        <h1 className="mt-6 text-4xl font-extrabold leading-tight text-gray-900 xl:text-5xl">
+                            Study smarter, retain more and prepare with confidence.
                         </h1>
 
-                        <p className="mt-6 max-w-md text-lg leading-8 text-gray-600">
-                            Turn your lecture materials into simple summaries,
-                            flashcards, quizzes and interactive learning experiences.
+                        <p className="mt-4 text-base leading-relaxed text-gray-700">
+                            Join university students who use LearnLite AI to extract,
+                            summarize and study high-yield material in low-bandwidth environments.
                         </p>
 
-                        <div className="mt-10 space-y-4">
-                            {[
-                                "Learn at your own pace",
-                                "Turn notes into useful study materials",
-                                "Continue learning, even offline",
-                            ].map((item) => (
-                                <div key={item} className="flex items-center gap-3">
-                                    <CheckCircle2 className="text-teal-600" size={20} />
-                                    <span className="text-sm font-medium text-gray-700">
-                                        {item}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
+                        <ul className="mt-8 space-y-3.5 text-sm text-gray-700">
+                            <li className="flex items-center gap-3">
+                                <CheckCircle2 className="h-5 w-5 text-teal-600 shrink-0" />
+                                <span>Fast document extraction for lecture notes and slides</span>
+                            </li>
+                            <li className="flex items-center gap-3">
+                                <CheckCircle2 className="h-5 w-5 text-teal-600 shrink-0" />
+                                <span>Active recall flashcards and custom practice quizzes</span>
+                            </li>
+                            <li className="flex items-center gap-3">
+                                <CheckCircle2 className="h-5 w-5 text-teal-600 shrink-0" />
+                                <span>Grounded AI Tutor to answer questions from your notes</span>
+                            </li>
+                        </ul>
                     </div>
 
-                    <p className="text-sm text-gray-500">
-                        Making learning simpler, one student at a time.
+                    <p className="text-xs text-gray-500">
+                        &copy; 2026 LearnLite AI. Built for accessibility &amp; offline resilience.
                     </p>
                 </section>
 
-                {/* Right signup section */}
-                <section className="flex items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
+                {/* Right form section */}
+                <section className="flex items-center justify-center p-6 sm:p-10 lg:p-12 xl:p-16">
                     <div className="w-full max-w-md">
 
-                        {/* Mobile logo */}
-                        <Link href="/" className="mb-10 flex items-center gap-2 lg:hidden">
-                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-600 text-white">
-                                <GraduationCap size={23} />
-                            </span>
-                            <span className="text-xl font-bold text-gray-900">
-                                LearnLite<span className="text-teal-600">.</span>
-                            </span>
-                        </Link>
+                        <div className="mb-6 lg:hidden">
+                            <Link href="/" className="flex items-center gap-2">
+                                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-600 text-white">
+                                    <GraduationCap size={22} />
+                                </span>
+                                <span className="text-xl font-bold text-gray-900">
+                                    LearnLite<span className="text-teal-600">.</span>
+                                </span>
+                            </Link>
+                        </div>
 
-                        <div className="mb-8">
-                            <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-                                Create your account
+                        <div>
+                            <h2 className="text-3xl font-extrabold text-gray-900">
+                                Create an account
                             </h2>
-                            <p className="mt-2 text-sm leading-6 text-gray-600">
-                                Join LearnLite and make your learning experience easier.
+                            <p className="mt-2 text-sm text-gray-600">
+                                Start generating summaries and flashcards in seconds.
                             </p>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-5">
+                        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
 
-                            {/* Full name */}
+                            {/* Full Name */}
                             <div>
                                 <label
                                     htmlFor="fullName"
-                                    className="mb-2 block text-sm font-semibold text-gray-700"
+                                    className="block text-xs font-semibold uppercase tracking-wider text-gray-700"
                                 >
-                                    Full name
+                                    Full Name
                                 </label>
-
-                                <div className="relative">
-                                    <User
-                                        size={19}
-                                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                                    />
-                                    <input
-                                        id="fullName"
-                                        type="text"
-                                        autoComplete="name"
-                                        required
-                                        value={fullName}
-                                        onChange={(e) => setFullName(e.target.value)}
-                                        placeholder="Enter your full name"
-                                        className="w-full rounded-xl border border-gray-200 bg-white py-3.5 pl-12 pr-4 text-sm text-gray-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
-                                    />
-                                </div>
+                                <input
+                                    id="fullName"
+                                    type="text"
+                                    required
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
+                                    placeholder="e.g. Chisom Okafor"
+                                    className="mt-1.5 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+                                />
                             </div>
 
                             {/* Email */}
                             <div>
                                 <label
                                     htmlFor="email"
-                                    className="mb-2 block text-sm font-semibold text-gray-700"
+                                    className="block text-xs font-semibold uppercase tracking-wider text-gray-700"
                                 >
                                     Email address
                                 </label>
+                                <input
+                                    id="email"
+                                    type="email"
+                                    required
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="student@university.edu"
+                                    className="mt-1.5 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+                                />
+                            </div>
 
-                                <div className="relative">
-                                    <Mail
-                                        size={19}
-                                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                                    />
-                                    <input
-                                        id="email"
-                                        type="email"
-                                        autoComplete="email"
-                                        required
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="you@example.com"
-                                        className="w-full rounded-xl border border-gray-200 bg-white py-3.5 pl-12 pr-4 text-sm text-gray-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
-                                    />
-                                </div>
+                            {/* Institution */}
+                            <div>
+                                <label
+                                    htmlFor="institution"
+                                    className="block text-xs font-semibold uppercase tracking-wider text-gray-700"
+                                >
+                                    University / Institution (Optional)
+                                </label>
+                                <input
+                                    id="institution"
+                                    type="text"
+                                    value={institution}
+                                    onChange={(e) => setInstitution(e.target.value)}
+                                    placeholder="e.g. UNILAG, UI, OAU"
+                                    className="mt-1.5 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+                                />
                             </div>
 
                             {/* Password */}
                             <div>
                                 <label
                                     htmlFor="password"
-                                    className="mb-2 block text-sm font-semibold text-gray-700"
+                                    className="block text-xs font-semibold uppercase tracking-wider text-gray-700"
                                 >
                                     Password
                                 </label>
-
-                                <div className="relative">
-                                    <Lock
-                                        size={19}
-                                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                                    />
+                                <div className="relative mt-1.5">
                                     <input
                                         id="password"
                                         type={showPassword ? "text" : "password"}
-                                        autoComplete="new-password"
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="At least 8 characters"
-                                        className="w-full rounded-xl border border-gray-200 bg-white py-3.5 pl-12 pr-12 text-sm text-gray-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+                                        placeholder="At least 6 characters"
+                                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-11 text-sm text-gray-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        aria-label={showPassword ? "Hide password" : "Show password"}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                                     >
-                                        {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Confirm password */}
+                            {/* Confirm Password */}
                             <div>
                                 <label
                                     htmlFor="confirmPassword"
-                                    className="mb-2 block text-sm font-semibold text-gray-700"
+                                    className="block text-xs font-semibold uppercase tracking-wider text-gray-700"
                                 >
-                                    Confirm password
+                                    Confirm Password
                                 </label>
-
-                                <div className="relative">
-                                    <Lock
-                                        size={19}
-                                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                                    />
+                                <div className="relative mt-1.5">
                                     <input
                                         id="confirmPassword"
                                         type={showConfirmPassword ? "text" : "password"}
-                                        autoComplete="new-password"
                                         required
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}
-                                        placeholder="Re-enter your password"
-                                        className="w-full rounded-xl border border-gray-200 bg-white py-3.5 pl-12 pr-12 text-sm text-gray-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+                                        placeholder="Repeat your password"
+                                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-11 text-sm text-gray-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
                                     />
                                     <button
                                         type="button"
-                                        onClick={() =>
-                                            setShowConfirmPassword(!showConfirmPassword)
-                                        }
-                                        aria-label={
-                                            showConfirmPassword
-                                                ? "Hide confirm password"
-                                                : "Show confirm password"
-                                        }
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                                     >
-                                        {showConfirmPassword ? (
-                                            <EyeOff size={19} />
-                                        ) : (
-                                            <Eye size={19} />
-                                        )}
+                                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Submit */}
                             <button
                                 type="submit"
-                                className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 py-3.5 text-sm font-semibold text-white transition hover:bg-teal-700"
+                                disabled={loading}
+                                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 py-3.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-60"
                             >
-                                Create account
-                                <ArrowRight size={18} />
+                                {loading ? (
+                                    <>
+                                        <Loader2 size={18} className="animate-spin" />
+                                        Creating account...
+                                    </>
+                                ) : (
+                                    <>
+                                        Get Started
+                                        <ArrowRight size={18} />
+                                    </>
+                                )}
                             </button>
+
                         </form>
 
-                        <p className="mt-8 text-center text-sm text-gray-600">
+                        <p className="mt-6 text-center text-sm text-gray-600">
                             Already have an account?{" "}
-                            <Link
-                                href="/login"
-                                className="font-semibold text-teal-700 hover:text-teal-800"
-                            >
+                            <Link href="/login" className="font-semibold text-teal-700 hover:underline">
                                 Sign in
                             </Link>
                         </p>
 
-                        <p className="mt-8 text-center text-xs leading-5 text-gray-400">
-                            By creating an account, you agree to our Terms of Service
-                            and Privacy Policy.
-                        </p>
                     </div>
                 </section>
+
             </div>
         </main>
     );

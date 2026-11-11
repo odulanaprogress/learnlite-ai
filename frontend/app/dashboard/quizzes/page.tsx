@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
     ArrowLeft,
@@ -14,8 +13,17 @@ import {
     Trophy,
     Sparkles,
 } from "lucide-react";
+import { api } from "@/lib/api";
+import { getLibraryMaterials } from "@/lib/library";
 
-const questions = [
+type QuizItem = {
+    question: string;
+    options: string[];
+    answer: number;
+    explanation: string;
+};
+
+const defaultQuestions: QuizItem[] = [
     {
         question: "Which organelle is known as the powerhouse of the cell?",
         options: ["Nucleus", "Mitochondrion", "Ribosome", "Golgi apparatus"],
@@ -59,11 +67,51 @@ const questions = [
 ];
 
 export default function QuizzesPage() {
+    const [questions, setQuestions] = useState<QuizItem[]>(defaultQuestions);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
     const [submitted, setSubmitted] = useState(false);
+    const [isCustom, setIsCustom] = useState(false);
 
-    const currentQuestion = questions[currentIndex];
+    useEffect(() => {
+        const pack = api.getLatestStudyPack();
+        if (pack && pack.quiz && pack.quiz.length > 0) {
+            setQuestions(
+                pack.quiz.map((q) => ({
+                    question: q.question,
+                    options: q.options,
+                    answer: q.correct_answer_index,
+                    explanation: q.explanation,
+                }))
+            );
+            setIsCustom(true);
+            return;
+        }
+
+        getLibraryMaterials()
+            .then((materials) => {
+                const res = materials.find((m) => m.resourceType === "Quiz" && m.textContent);
+                if (res && res.textContent) {
+                    try {
+                        const parsed = JSON.parse(res.textContent);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            setQuestions(
+                                parsed.map((q: any) => ({
+                                    question: q.question,
+                                    options: q.options,
+                                    answer: q.correct_answer_index ?? q.answer ?? 0,
+                                    explanation: q.explanation || "Correct answer.",
+                                }))
+                            );
+                            setIsCustom(true);
+                        }
+                    } catch {}
+                }
+            })
+            .catch(() => {});
+    }, []);
+
+    const currentQuestion = questions[currentIndex] || questions[0];
     const selectedAnswer = selectedAnswers[currentIndex];
     const progress = ((currentIndex + 1) / questions.length) * 100;
 
@@ -129,173 +177,159 @@ export default function QuizzesPage() {
                 </div>
             </header>
 
-            <section className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-                <div>
-                    <p className="text-sm font-semibold uppercase tracking-wider text-teal-700">
-                        Test your knowledge
-                    </p>
+            <section className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+                <div className="mb-6 flex items-center justify-between">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold uppercase tracking-wider text-teal-700">
+                                Practice Quizzes
+                            </p>
+                            {isCustom && (
+                                <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-semibold text-purple-700">
+                                    AI-Generated
+                                </span>
+                            )}
+                        </div>
 
-                    <h1 className="mt-2 text-3xl font-bold text-gray-900">
-                        Practice Quizzes
-                    </h1>
+                        <h1 className="mt-1 text-3xl font-bold text-gray-900">
+                            Test Your Understanding
+                        </h1>
+                    </div>
 
-                    <p className="mt-2 text-sm text-gray-500">
-                        Challenge yourself and find out how much you have learned.
-                    </p>
+                    <div className="flex items-center gap-2 rounded-2xl bg-white px-4 py-2 border border-stone-200">
+                        <ClipboardList size={18} className="text-teal-700" />
+                        <span className="text-sm font-semibold text-gray-700">
+                            {currentIndex + 1} of {questions.length}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="mb-6 h-2 w-full overflow-hidden rounded-full bg-stone-200">
+                    <div
+                        className="h-full bg-teal-600 transition-all duration-300"
+                        style={{ width: `${progress}%` }}
+                    />
                 </div>
 
                 {!submitted ? (
-                    <div className="mt-8 rounded-3xl border border-stone-200 bg-white p-5 sm:p-8">
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                                <ClipboardList size={20} className="text-teal-700" />
-                                <span className="text-sm font-semibold text-gray-800">
-                                    Biology practice
-                                </span>
-                            </div>
-
-                            <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">
-                                Demo quiz
-                            </span>
-                        </div>
-
-                        <div className="mt-5 h-2 overflow-hidden rounded-full bg-stone-100">
-                            <div
-                                className="h-full rounded-full bg-teal-600 transition-all duration-300"
-                                style={{ width: `${progress}%` }}
-                            />
-                        </div>
-
-                        <div className="mt-3 flex justify-between text-xs text-gray-500">
-                            <span>Question {currentIndex + 1} of {questions.length}</span>
-                            <span>{Math.round(progress)}% completed</span>
-                        </div>
-
-                        <h2 className="mt-8 text-xl font-bold leading-relaxed text-gray-900">
-                            {currentQuestion.question}
+                    <div className="rounded-3xl border border-stone-200 bg-white p-6 sm:p-8 shadow-sm">
+                        <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
+                            {currentQuestion?.question}
                         </h2>
 
                         <div className="mt-6 space-y-3">
-                            {currentQuestion.options.map((option, index) => {
-                                const isSelected = selectedAnswer === index;
+                            {currentQuestion?.options.map((option, index) => {
+                                const selected = selectedAnswer === index;
 
                                 return (
                                     <button
-                                        key={option}
+                                        key={index}
                                         type="button"
                                         onClick={() => selectAnswer(index)}
-                                        className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left text-sm transition ${
-                                            isSelected
-                                                ? "border-teal-600 bg-teal-50 text-teal-900"
-                                                : "border-stone-200 text-gray-700 hover:border-teal-300 hover:bg-stone-50"
+                                        className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition-all ${
+                                            selected
+                                                ? "border-teal-600 bg-teal-50 ring-2 ring-teal-100"
+                                                : "border-stone-200 hover:border-teal-200 hover:bg-stone-50"
                                         }`}
                                     >
-                                        <span
-                                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                                                isSelected
-                                                    ? "bg-teal-700 text-white"
-                                                    : "bg-stone-100 text-gray-600"
-                                            }`}
-                                        >
-                                            {String.fromCharCode(65 + index)}
-                                        </span>
-
-                                        <span className="font-medium">{option}</span>
+                                        <div className="flex items-center gap-3">
+                                            <span
+                                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
+                                                    selected
+                                                        ? "bg-teal-700 text-white"
+                                                        : "bg-stone-100 text-gray-600"
+                                                }`}
+                                            >
+                                                {String.fromCharCode(65 + index)}
+                                            </span>
+                                            <span className="text-sm font-medium text-gray-900">
+                                                {option}
+                                            </span>
+                                        </div>
                                     </button>
                                 );
                             })}
                         </div>
 
-                        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-stone-100 pt-5">
+                        <div className="mt-8 flex items-center justify-between border-t border-stone-100 pt-6">
                             <button
                                 type="button"
                                 onClick={goPrevious}
                                 disabled={currentIndex === 0}
-                                className="rounded-xl border border-stone-200 px-4 py-3 text-sm font-semibold text-gray-600 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                className="rounded-xl border border-stone-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-stone-50 disabled:opacity-40"
                             >
                                 Previous
                             </button>
 
-                            {currentIndex === questions.length - 1 ? (
-                                <button
-                                    type="button"
-                                    onClick={handleSubmit}
-                                    disabled={Object.keys(selectedAnswers).length !== questions.length}
-                                    className="rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    Submit quiz
-                                </button>
-                            ) : (
+                            {currentIndex < questions.length - 1 ? (
                                 <button
                                     type="button"
                                     onClick={goNext}
                                     disabled={selectedAnswer === undefined}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
+                                    className="flex items-center gap-2 rounded-xl bg-teal-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
                                 >
-                                    Next question
+                                    Next
                                     <ChevronRight size={17} />
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleSubmit}
+                                    disabled={Object.keys(selectedAnswers).length !== questions.length}
+                                    className="flex items-center gap-2 rounded-xl bg-teal-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+                                >
+                                    Submit Quiz
+                                    <Sparkles size={17} />
                                 </button>
                             )}
                         </div>
                     </div>
                 ) : (
-                    <div className="mt-8 rounded-3xl border border-stone-200 bg-white p-6 sm:p-10">
-                        <div className="text-center">
-                            <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-teal-50 text-teal-700">
-                                <Trophy size={32} />
-                            </span>
+                    <div className="rounded-3xl border border-stone-200 bg-white p-8 text-center shadow-sm">
+                        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-100 text-teal-700">
+                            <Trophy size={32} />
+                        </span>
 
-                            <p className="mt-6 text-sm font-semibold uppercase tracking-wider text-teal-700">
-                                Quiz completed
-                            </p>
+                        <h2 className="mt-4 text-2xl font-bold text-gray-900">
+                            Quiz Completed!
+                        </h2>
 
-                            <h2 className="mt-2 text-3xl font-bold text-gray-900">
-                                Your result
-                            </h2>
+                        <p className="mt-1 text-sm text-gray-500">
+                            You scored {score} out of {questions.length} questions correctly.
+                        </p>
 
-                            <p className="mt-5 text-5xl font-bold text-teal-700">
-                                {score}/{questions.length}
-                            </p>
-
-                            <p className="mt-2 text-sm text-gray-500">
-                                You scored {Math.round((score / questions.length) * 100)}%.
-                            </p>
-                        </div>
-
-                        <div className="mt-8 space-y-5">
-                            {questions.map((question, index) => {
-                                const correct =
-                                    selectedAnswers[index] === question.answer;
-
+                        <div className="mt-8 space-y-4 text-left">
+                            {questions.map((q, idx) => {
+                                const isCorrect = selectedAnswers[idx] === q.answer;
                                 return (
                                     <div
-                                        key={index}
-                                        className="rounded-xl border border-stone-200 p-4"
+                                        key={idx}
+                                        className={`rounded-2xl border p-4 ${
+                                            isCorrect
+                                                ? "border-green-200 bg-green-50/50"
+                                                : "border-red-200 bg-red-50/50"
+                                        }`}
                                     >
-                                        <div className="flex items-start gap-3">
-                                            {correct ? (
-                                                <CheckCircle2 className="mt-0.5 shrink-0 text-teal-600" size={19} />
+                                        <div className="flex items-start gap-2.5">
+                                            {isCorrect ? (
+                                                <CheckCircle2 size={18} className="mt-0.5 text-green-600 shrink-0" />
                                             ) : (
-                                                <XCircle className="mt-0.5 shrink-0 text-red-500" size={19} />
+                                                <XCircle size={18} className="mt-0.5 text-red-600 shrink-0" />
                                             )}
-
                                             <div>
                                                 <p className="text-sm font-semibold text-gray-900">
-                                                    {index + 1}. {question.question}
+                                                    {idx + 1}. {q.question}
                                                 </p>
-
-                                                <p className="mt-2 text-xs text-gray-500">
-                                                    Your answer: {question.options[selectedAnswers[index]]}
+                                                <p className="mt-1 text-xs text-gray-600">
+                                                    Your answer: <span className="font-medium">{q.options[selectedAnswers[idx]]}</span>
                                                 </p>
-
-                                                {!correct && (
-                                                    <p className="mt-1 text-xs font-medium text-teal-700">
-                                                        Correct answer: {question.options[question.answer]}
+                                                {!isCorrect && (
+                                                    <p className="mt-0.5 text-xs text-green-700 font-medium">
+                                                        Correct answer: {q.options[q.answer]}
                                                     </p>
                                                 )}
-
-                                                <p className="mt-3 text-sm leading-6 text-gray-600">
-                                                    {question.explanation}
+                                                <p className="mt-1 text-xs text-gray-500 italic">
+                                                    {q.explanation}
                                                 </p>
                                             </div>
                                         </div>
@@ -307,18 +341,13 @@ export default function QuizzesPage() {
                         <button
                             type="button"
                             onClick={restartQuiz}
-                            className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-800"
+                            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-teal-700 px-6 py-3 text-sm font-semibold text-white hover:bg-teal-800"
                         >
                             <RotateCcw size={17} />
-                            Try again
+                            Retry Quiz
                         </button>
                     </div>
                 )}
-
-                <p className="mt-5 flex items-center justify-center gap-2 text-center text-xs text-gray-400">
-                    <Sparkles size={14} />
-                    Sample quiz for demonstration. AI quiz generation will be connected later.
-                </p>
             </section>
         </main>
     );

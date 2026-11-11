@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api, type SafeUser } from "@/lib/api";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -65,11 +66,17 @@ export default function DashboardPage() {
 
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [user, setUser] = useState<SafeUser | null>(null);
+
+    useEffect(() => {
+        setUser(api.getUser());
+    }, []);
 
     function handleLogout() {
         const confirmed = window.confirm("Are you sure you want to sign out?");
 
         if (confirmed) {
+            api.auth.logout();
             router.push("/login");
         }
     }
@@ -235,8 +242,8 @@ export default function DashboardPage() {
                                 <div className="hidden h-8 w-px bg-stone-200 sm:block" />
 
                                 <UserProfile
-                                    name="Student"
-                                    email="student@example.com"
+                                    name={user?.name || "Student"}
+                                    email={user?.email || "student@example.com"}
                                     onSettings={() =>
                                         router.push("/dashboard/settings")
                                     }
