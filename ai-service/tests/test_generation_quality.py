@@ -4,6 +4,7 @@ from app.generation.quality import (
     validate_study_pack,
 )
 from app.schemas.study_pack import (
+    KeyConcept,
     StudyPackRequest,
     StudyPackResponse,
 )
@@ -165,3 +166,46 @@ def test_paraphrased_content_is_not_rejected_by_lexical_checks():
     issues = validate_study_pack(pack, valid_request())
 
     assert not any("word overlap" in issue for issue in issues)
+
+def test_supervised_and_unsupervised_learning_are_distinct_concepts():
+    existing = ["Supervised Learning"]
+
+    assert not is_duplicate(
+        "Unsupervised Learning",
+        existing,
+        exact_only=True,
+    )
+
+
+def test_identical_key_concept_terms_are_flagged():
+    pack = valid_pack()
+    pack.key_concepts.append(
+        KeyConcept(
+            term="Machine Learning",
+            definition="Systems learn patterns from data.",
+        )
+    )
+
+    issues = validate_study_pack(pack, valid_request())
+
+    assert any(
+        "Duplicate key concept: Machine Learning" in issue
+        for issue in issues
+    )
+
+
+def test_supervised_and_unsupervised_concepts_pass_validation():
+    pack = valid_pack()
+    pack.key_concepts.append(
+        KeyConcept(
+            term="Unsupervised Learning",
+            definition="Learning patterns from unlabelled data.",
+        )
+    )
+
+    issues = validate_study_pack(pack, valid_request())
+
+    assert not any(
+        "Duplicate key concept" in issue
+        for issue in issues
+    )

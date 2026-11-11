@@ -29,6 +29,8 @@ def is_duplicate(
     candidate: str,
     existing: list[str],
     threshold: float = 0.88,
+    *,
+    exact_only: bool = False,
 ) -> bool:
     normalized = normalize_text(candidate)
 
@@ -40,6 +42,9 @@ def is_duplicate(
 
         if normalized == previous_normalized:
             return True
+
+        if exact_only:
+            continue
 
         similarity = SequenceMatcher(
             None,
@@ -85,7 +90,7 @@ def validate_study_pack(
             issues.append(f"Key concept {index} is incomplete.")
             continue
 
-        if is_duplicate(term, concept_terms):
+        if is_duplicate(term, concept_terms, exact_only=True):
             issues.append(f"Duplicate key concept: {term}")
 
         concept_terms.append(term)
