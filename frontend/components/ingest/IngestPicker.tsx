@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FileText, Camera, PenLine, type LucideIcon } from "lucide-react";
 import UploadPanel from "../ingest/UploadPanel";
 import CameraPanel from "../ingest/CameraPanel";
 import TextPanel from "../ingest/TextPanel";
+import ProcessingScreen from "../processing/ProcessingScreen";
 
 type Mode = "upload" | "snap" | "text";
+type Phase = "pick" | "processing" | "done";
+
+const TOTAL_STEPS = 3;
+const STEP_MS = 1500;
 
 const options: {
   id: Mode;
@@ -40,6 +45,31 @@ const options: {
 
 export default function IngestPicker() {
   const [mode, setMode] = useState<Mode | null>(null);
+  const [phase, setPhase] = useState<Phase>("pick");
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    if (phase !== "processing") return;
+
+    const id = setTimeout(() => {
+      if (step + 1 >= TOTAL_STEPS) setPhase("done");
+      setStep(step + 1);
+    }, STEP_MS);
+
+    return () => clearTimeout(id);
+  }, [phase, step]);
+
+  function startProcessing(payload: File | string) {
+    console.log("Submitted:", payload);
+    setStep(0);
+    setPhase("processing");
+  }
+
+  function reset() {
+    setPhase("pick");
+    setStep(0);
+    setMode(null);
+  }
 
   return (
     <section className="mx-auto w-full max-w-md p-4 lg:max-w-4xl lg:p-8">
@@ -57,8 +87,12 @@ export default function IngestPicker() {
             <button
               key={id}
               type="button"
-              onClick={() => setMode(id)}
-              className={`flex items-center gap-3 rounded-2xl border bg-white p-4 text-left transition-colors ${
+              disabled={phase === "processing"}
+              onClick={() => {
+                setMode(id);
+                setPhase("pick");
+              }}
+              className={`flex items-center gap-3 rounded-2xl border bg-white p-4 text-left transition-colors disabled:opacity-50 ${
                 mode === id ? "border-teal-500" : "border-transparent"
               }`}
             >
@@ -78,23 +112,36 @@ export default function IngestPicker() {
         </div>
 
         <div>
-          {mode === null && (
-            <div className="hidden rounded-3xl border border-dashed border-gray-300 p-10 text-center text-sm text-gray-500 lg:block">
-              Your chosen option will appear here.
+          {phase === "processing" && (
+            <ProcessingScreen step={step} onCancel={() => setPhase("pick")} />
+          )}
+
+          {phase === "done" && (
+            <div className="rounded-2xl bg-white p-6 text-center">
+              <p className="font-medium text-gray-900">
+                Your study material will appear here.
+              </p>
+              <button
+                type="button"
+                onClick={reset}
+                className="mt-4 w-full rounded-xl bg-gray-100 py-3 font-medium text-gray-900"
+              >
+                Add more notes
+              </button>
             </div>
           )}
-          {mode === "upload" && (
-            <UploadPanel
-              onSubmit={(file) => console.log("Chosen file:", file)}
-            />
-          )}
-          {mode === "snap" && (
-            <CameraPanel
-              onSubmit={(file) => console.log("Captured photo:", file)}
-            />
-          )}
-          {mode === "text" && (
-            <TextPanel onSubmit={(text) => console.log("Typed notes:", text)} />
+
+          {phase === "pick" && (
+            <>
+              {mode === null && (
+                <div className="hidden rounded-3xl border border-dashed border-gray-300 p-10 text-center text-sm text-gray-500 lg:block">
+                  Your chosen option will appear here.
+                </div>
+              )}
+              {mode === "upload" && <UploadPanel onSubmit={startProcessing} />}
+              {mode === "snap" && <CameraPanel onSubmit={startProcessing} />}
+              {mode === "text" && <TextPanel onSubmit={startProcessing} />}
+            </>
           )}
         </div>
       </div>
