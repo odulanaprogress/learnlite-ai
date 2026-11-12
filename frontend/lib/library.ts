@@ -99,7 +99,8 @@ function addMaterial(material: LibraryMaterial): Promise<LibraryMaterial> {
 
 // Save an uploaded file, captured image, or pasted lecture notes.
 export async function saveLibraryMaterial(
-    payload: File | string
+    payload: File | string,
+    extractedText?: string
 ): Promise<LibraryMaterial> {
     const isText = typeof payload === "string";
 
@@ -115,9 +116,8 @@ export async function saveLibraryMaterial(
         size,
         createdAt: new Date().toISOString(),
         category: "source",
-        ...(isText
-            ? { textContent: payload }
-            : { file: payload }),
+        textContent: isText ? payload : (extractedText || undefined),
+        ...(!isText ? { file: payload } : {}),
     };
 
     return addMaterial(material);

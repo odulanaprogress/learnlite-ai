@@ -58,25 +58,43 @@ export default function TutorPage() {
         setLoading(true);
 
         try {
-            // Build context pages from user's library or latest study pack
-            const pages = materials.flatMap((m, idx) => {
-                const text = m.textContent?.trim();
-                if (!text) return [];
-                return [{ page_number: idx + 1, text: text.slice(0, 3000) }];
+            // 1. Gather context from latest generated study pack
+            const pack = api.getLatestStudyPack();
+            const packPages: { page_number: number; text: string }[] = [];
+
+            if (pack?.summary) {
+                packPages.push({
+                    page_number: 1,
+                    text: `Topic & Summary (${pack.filename || "Notes"}): ${pack.summary}`,
+                });
+            }
+
+            if (pack?.key_concepts && pack.key_concepts.length > 0) {
+                packPages.push({
+                    page_number: 2,
+                    text: `Key Concepts & Definitions:\n` + pack.key_concepts.map(k => `- ${k.term}: ${k.definition}`).join("\n"),
+                });
+            }
+
+            // 2. Add saved library materials
+            const libraryPages = materials.flatMap((m, idx) => {
+                const content = m.textContent?.trim();
+                if (!content) return [];
+                return [{ page_number: packPages.length + idx + 1, text: `${m.name}:\n${content.slice(0, 3500)}` }];
             });
 
-            // If user hasn't uploaded notes yet, provide basic university study grounding
-            const defaultPages = pages.length > 0 ? pages : [
+            const combinedPages = [...packPages, ...libraryPages];
+            const pagesToPass = combinedPages.length > 0 ? combinedPages : [
                 {
                     page_number: 1,
-                    text: "University coursework and foundational academic principles. The student is reviewing study materials, key terms, definitions, and exam preparation concepts."
+                    text: "University coursework across sciences, humanities, engineering, business, and general academic curriculum. Foundational definitions, concepts, and exam prep principles.",
                 }
             ];
 
             const response = await api.tutor.ask({
                 question: query,
-                pages: defaultPages,
-                filename: materials[0]?.name || "Lecture Notes",
+                pages: pagesToPass,
+                filename: pack?.filename || materials[0]?.name || "University Study Notes",
                 history: newHistory.slice(-6).map((m) => ({ role: m.role, content: m.content })),
             });
 

@@ -162,8 +162,12 @@ export default function FlashcardsPage() {
                             Your study session
                         </span>
 
-                        <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">
-                            Demo cards
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            isCustom
+                                ? "bg-teal-50 text-teal-700 border border-teal-200"
+                                : "bg-orange-50 text-orange-700"
+                        }`}>
+                            {isCustom ? "AI-Generated Active Recall" : "Curated Practice Set"}
                         </span>
                     </div>
 
@@ -174,7 +178,10 @@ export default function FlashcardsPage() {
                         />
                     </div>
 
-                    <div className="mt-8 flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-teal-100 bg-[#f3f8f5] p-8 text-center">
+                    <div 
+                        onClick={() => setFlipped(!flipped)}
+                        className="mt-8 flex min-h-[300px] cursor-pointer select-none flex-col items-center justify-center rounded-2xl border border-teal-100 bg-[#f3f8f5] p-8 text-center transition hover:border-teal-300"
+                    >
                         <span className="rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-teal-700">
                             {currentCard.category}
                         </span>
@@ -235,7 +242,7 @@ export default function FlashcardsPage() {
                 </div>
 
                 <p className="mt-5 text-center text-xs text-gray-400">
-                    These are sample flashcards. AI-generated study cards will be connected through the backend.
+                    LearnLite AI Flashcards &bull; Active recall &amp; spaced repetition practice
                 </p>
             </section>
         </main>

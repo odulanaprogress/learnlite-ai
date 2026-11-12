@@ -26,7 +26,7 @@ def retrieve_relevant_chunks(
     question: str,
     chunks: list[dict],
     top_k: int = 4,
-    min_overlap: int = 2,
+    min_overlap: int = 1,
 ) -> list[dict]:
     query_terms = set(tokenize(question))
 

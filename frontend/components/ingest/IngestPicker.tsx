@@ -100,8 +100,11 @@ export default function IngestPicker() {
                 },
             });
 
-            // 2. Save original document to local IndexedDB library
-            const savedSource = await saveLibraryMaterial(payload);
+            // 2. Save original document with extracted text content to local IndexedDB library
+            const extractedContent = isText 
+                ? (payload as string) 
+                : (pack.summary ? `Summary & Concepts for ${pack.filename}:\n${pack.summary}\n\nKey Concepts:\n` + (pack.key_concepts || []).map(k => `${k.term}: ${k.definition}`).join("\n") : undefined);
+            const savedSource = await saveLibraryMaterial(payload, extractedContent);
 
             // 3. Save AI summary, flashcards and quiz into local library
             if (pack.summary) {

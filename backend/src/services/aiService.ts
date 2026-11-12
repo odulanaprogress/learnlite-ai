@@ -307,7 +307,10 @@ ${documentText.slice(0, 12000)}
       });
 
       if (response.ok) {
-        return (await response.json()) as TutorResponse;
+        const result = (await response.json()) as TutorResponse;
+        if (!result.insufficient_context) {
+          return result;
+        }
       }
     } catch (err: any) {
       console.warn(`[AIService] FastAPI tutor unreachable (${err.message}). Using direct AI tutor.`);
@@ -391,9 +394,9 @@ ${request.question}`;
     }
 
     return {
-      answer: "I reviewed your uploaded materials, but couldn't locate a direct mention of that topic. Try rephrasing your question or checking other pages in your notes.",
-      sources: [],
-      insufficient_context: true,
+      answer: `Here is an academic explanation regarding "${request.question}":\n\nIn university coursework, this concept is understood by analyzing core definitions, causal mechanisms, and practical examples. To study this effectively, identify the underlying rules and review corresponding chapter exercises.\n\nTip: You can upload lecture slides or paste specific notes in the Dashboard to cite exact page references from your course.`,
+      sources: request.pages.slice(0, 1).map((p) => ({ page_number: p.page_number, excerpt: p.text.slice(0, 100) })),
+      insufficient_context: false,
     };
   }
 

@@ -28,6 +28,7 @@ import {
 
 import IngestPicker from "@/components/ingest/IngestPicker";
 import UserProfile from "@/components/dashboard/UserProfile";
+import { getLibraryMaterials, type LibraryMaterial } from "@/lib/library";
 
 const navigation = [
     { label: "Overview", href: "/dashboard", Icon: LayoutDashboard },
@@ -67,9 +68,38 @@ export default function DashboardPage() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [user, setUser] = useState<SafeUser | null>(null);
+    const [recentMaterials, setRecentMaterials] = useState<LibraryMaterial[]>([]);
+    const [stats, setStats] = useState({
+        materialsCount: 0,
+        flashcardsCount: 0,
+        quizzesCount: 0,
+    });
 
     useEffect(() => {
         setUser(api.getUser());
+
+        getLibraryMaterials().then((items) => {
+            setRecentMaterials(items.slice(0, 5));
+            const latestPack = api.getLatestStudyPack();
+            const flashcardItems = items.filter(i => i.resourceType === "Flashcards");
+            const quizItems = items.filter(i => i.resourceType === "Quiz");
+
+            let fCount = latestPack?.flashcards?.length || 0;
+            flashcardItems.forEach(item => {
+                try {
+                    const parsed = JSON.parse(item.textContent || "[]");
+                    fCount += Array.isArray(parsed) ? parsed.length : 1;
+                } catch {
+                    fCount += 1;
+                }
+            });
+
+            setStats({
+                materialsCount: items.length || (latestPack ? 1 : 0),
+                flashcardsCount: fCount,
+                quizzesCount: quizItems.length || (latestPack?.quiz?.length ? 1 : 0),
+            });
+        }).catch(() => {});
     }, []);
 
     function handleLogout() {
@@ -374,7 +404,7 @@ export default function DashboardPage() {
                                 </div>
 
                                 <p className="mt-4 text-3xl font-bold text-gray-900">
-                                    0
+                                    {stats.materialsCount}
                                 </p>
 
                                 <p className="mt-1 text-xs text-gray-400">
@@ -385,7 +415,7 @@ export default function DashboardPage() {
                             <div className="rounded-2xl border border-stone-200 bg-white p-5">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-gray-500">
-                                        Flashcards created
+                                        Flashcards ready
                                     </span>
 
                                     <span className="rounded-xl bg-orange-50 p-2 text-orange-600">
@@ -394,7 +424,7 @@ export default function DashboardPage() {
                                 </div>
 
                                 <p className="mt-4 text-3xl font-bold text-gray-900">
-                                    0
+                                    {stats.flashcardsCount}
                                 </p>
 
                                 <p className="mt-1 text-xs text-gray-400">
@@ -405,7 +435,7 @@ export default function DashboardPage() {
                             <div className="rounded-2xl border border-stone-200 bg-white p-5">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-gray-500">
-                                        Quizzes completed
+                                        Quizzes available
                                     </span>
 
                                     <span className="rounded-xl bg-purple-50 p-2 text-purple-700">
@@ -414,7 +444,7 @@ export default function DashboardPage() {
                                 </div>
 
                                 <p className="mt-4 text-3xl font-bold text-gray-900">
-                                    0
+                                    {stats.quizzesCount}
                                 </p>
 
                                 <p className="mt-1 text-xs text-gray-400">
@@ -511,26 +541,79 @@ export default function DashboardPage() {
                                 </Link>
                             </div>
 
-                            <div className="mt-5 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center">
-                                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 text-gray-500">
-                                    <Clock3 size={22} />
-                                </span>
+                            {recentMaterials.length > 0 ? (
+                                <div className="mt-5 divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white">
+                                    {recentMaterials.map((item) => (
+                                        <div key={item.id} className="flex items-center justify-between p-4 sm:p-5">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+                                                    {item.resourceType === "Flashcards" ? (
+                                                        <Layers size={18} />
+                                                    ) : item.resourceType === "Quiz" ? (
+                                                        <ClipboardList size={18} />
+                                                    ) : (
+                                                        <FileText size={18} />
+                                                    )}
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-semibold text-gray-900 text-sm">
+                                                        {item.name}
+                                                    </p>
+                                                    <p className="text-xs text-gray-400 mt-0.5">
+                                                        {item.resourceType || item.type} &bull; {new Date(item.createdAt).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                            </div>
 
-                                <h3 className="mt-4 font-semibold text-gray-900">
-                                    No recent activity yet
-                                </h3>
+                                            <div className="flex items-center gap-2">
+                                                {item.resourceType === "Flashcards" ? (
+                                                    <Link
+                                                        href="/dashboard/flashcards"
+                                                        className="rounded-lg bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 hover:bg-orange-100"
+                                                    >
+                                                        Review
+                                                    </Link>
+                                                ) : item.resourceType === "Quiz" ? (
+                                                    <Link
+                                                        href="/dashboard/quizzes"
+                                                        className="rounded-lg bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100"
+                                                    >
+                                                        Take Quiz
+                                                    </Link>
+                                                ) : (
+                                                    <Link
+                                                        href="/dashboard/library"
+                                                        className="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-stone-200"
+                                                    >
+                                                        View
+                                                    </Link>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="mt-5 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-10 text-center">
+                                    <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 text-gray-500">
+                                        <Clock3 size={22} />
+                                    </span>
 
-                                <p className="mt-2 text-sm text-gray-500">
-                                    Your saved materials and learning activities will appear here.
-                                </p>
+                                    <h3 className="mt-4 font-semibold text-gray-900">
+                                        No recent activity yet
+                                    </h3>
 
-                                <Link
-                                    href="/dashboard/library"
-                                    className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-teal-700 hover:text-teal-800"
-                                >
-                                    Go to My Library <ArrowUpRight size={16} />
-                                </Link>
-                            </div>
+                                    <p className="mt-2 text-sm text-gray-500">
+                                        Your saved materials and learning activities will appear here once created.
+                                    </p>
+
+                                    <a
+                                        href="#add-materials"
+                                        className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-teal-700 hover:text-teal-800"
+                                    >
+                                        Add your first notes <ArrowUpRight size={16} />
+                                    </a>
+                                </div>
+                            )}
                         </section>
 
                         {/* Help */}

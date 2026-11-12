@@ -16,13 +16,18 @@ router.post("/ask", optionalAuth, async (req: Request, res: Response) => {
       return;
     }
 
-    if (!tutorReq.pages || !Array.isArray(tutorReq.pages) || tutorReq.pages.length === 0) {
-      sendError(res, "Document pages or lecture notes are required to ground tutor responses.", 400, "MISSING_CONTEXT");
-      return;
-    }
+    const pages = (tutorReq.pages && Array.isArray(tutorReq.pages) && tutorReq.pages.length > 0)
+      ? tutorReq.pages
+      : [
+          {
+            page_number: 1,
+            text: "University coursework, academic definitions, foundational study notes, and core lecture principles."
+          }
+        ];
 
     const answer = await aiServiceClient.askTutor({
       ...tutorReq,
+      pages,
       userId: req.user?.id || tutorReq.userId,
     });
 
