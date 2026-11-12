@@ -11,11 +11,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const MAX_SIZE_MB = 20;
+const MAX_SIZE_MB = 25;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
 const ACCEPTED_TYPES =
-    ".pdf,.doc,.docx,.ppt,.pptx,.txt,.md,.rtf,application/pdf,text/plain,text/markdown,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    ".pdf,.doc,.docx,.ppt,.pptx,.txt,.md,.rtf,.odt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/markdown,text/*";
 
 const ALLOWED_EXTENSIONS = [
     "pdf",
@@ -26,6 +26,7 @@ const ALLOWED_EXTENSIONS = [
     "txt",
     "md",
     "rtf",
+    "odt",
 ];
 
 type Props = {
@@ -42,20 +43,24 @@ export default function UploadPanel({ onSubmit }: Props) {
     function handleFile(pickedFile?: File) {
         if (!pickedFile) return;
 
-        const extension = pickedFile.name
-            .split(".")
-            .pop()
-            ?.toLowerCase();
+        const nameParts = pickedFile.name.split(".");
+        const extension = nameParts.length > 1 ? nameParts.pop()?.toLowerCase() : "";
 
-        // Check extension or MIME type
+        // Check extension or MIME type (permissive for mobile file pickers)
+        const mime = (pickedFile.type || "").toLowerCase();
         const isMimeMatch =
-            pickedFile.type.includes("pdf") ||
-            pickedFile.type.includes("text") ||
-            pickedFile.type.includes("word") ||
-            pickedFile.type.includes("presentation") ||
-            pickedFile.type.includes("document");
+            !mime ||
+            mime === "application/octet-stream" ||
+            mime.includes("pdf") ||
+            mime.includes("text") ||
+            mime.includes("word") ||
+            mime.includes("presentation") ||
+            mime.includes("officedocument") ||
+            mime.includes("msword");
 
-        if (!isMimeMatch && (!extension || !ALLOWED_EXTENSIONS.includes(extension))) {
+        const isExtMatch = extension ? ALLOWED_EXTENSIONS.includes(extension) : false;
+
+        if (!isMimeMatch && !isExtMatch) {
             const message =
                 "Unsupported file format. Please select a PDF, Word (DOC/DOCX), PowerPoint (PPT/PPTX), or TXT/Markdown file.";
 
@@ -107,6 +112,7 @@ export default function UploadPanel({ onSubmit }: Props) {
 
     function handleRemove(e: React.MouseEvent) {
         e.stopPropagation();
+        e.preventDefault();
         setFile(null);
         setError("");
 
@@ -117,7 +123,7 @@ export default function UploadPanel({ onSubmit }: Props) {
         toast.info("Selected file removed.");
     }
 
-    function handleDrop(event: DragEvent<HTMLDivElement>) {
+    function handleDrop(event: DragEvent<HTMLLabelElement>) {
         event.preventDefault();
         setIsDragging(false);
 
@@ -144,60 +150,55 @@ export default function UploadPanel({ onSubmit }: Props) {
                 type="file"
                 accept={ACCEPTED_TYPES}
                 onChange={handleChange}
-                className="hidden"
+                className="sr-only"
                 id="device-document-upload"
             />
 
             {!file ? (
-                <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => inputRef.current?.click()}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            inputRef.current?.click();
-                        }
-                    }}
+                <label
+                    htmlFor="device-document-upload"
                     onDragOver={(event) => {
                         event.preventDefault();
                         setIsDragging(true);
                     }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
-                    className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 sm:p-8 text-center transition-all ${
+                    className={`block cursor-pointer rounded-2xl border-2 border-dashed p-6 sm:p-8 text-center transition-all ${
                         isDragging
                             ? "border-teal-500 bg-teal-50/70 scale-[0.99]"
-                            : "border-stone-300 bg-stone-50/70 hover:border-teal-500 hover:bg-teal-50/30"
+                            : "border-stone-300 bg-stone-50/70 hover:border-teal-500 hover:bg-teal-50/30 active:bg-teal-50/50"
                     }`}
                 >
-                    <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-100 text-teal-700 shadow-xs">
+                    <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-100 text-teal-700 shadow-xs pointer-events-none">
                         <UploadCloud size={28} />
                     </span>
 
-                    <h4 className="mt-4 font-bold text-gray-900 text-base">
+                    <h4 className="mt-4 font-bold text-gray-900 text-base pointer-events-none">
                         Select a document from your device
                     </h4>
 
-                    <p className="mt-1 text-xs sm:text-sm text-gray-500 max-w-sm mx-auto">
-                        Click anywhere or drag and drop your lecture slides, notes, or course reading.
+                    <p className="mt-1 text-xs sm:text-sm text-gray-500 max-w-sm mx-auto pointer-events-none">
+                        Tap anywhere or drag and drop your lecture slides, notes, or course reading from your phone or computer.
                     </p>
 
-                    <div className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800">
+                    <div className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800 pointer-events-none">
                         <FolderOpen size={16} />
                         Browse Files
                     </div>
 
-                    <p className="mt-4 text-[11px] text-gray-400">
+                    <p className="mt-4 text-[11px] text-gray-400 pointer-events-none">
                         PDF, Word (.docx), PowerPoint (.pptx), or TXT &bull; Max {MAX_SIZE_MB}MB
                     </p>
-                </div>
+                </label>
             ) : (
                 <div 
-                    onClick={() => inputRef.current?.click()}
-                    className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-teal-50/60 p-4 transition hover:bg-teal-50"
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-teal-50/60 p-4 transition"
                 >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <label
+                        htmlFor="device-document-upload"
+                        className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                        title="Click to choose a different document"
+                    >
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white shadow-xs">
                             <FileText size={22} />
                         </span>
@@ -209,10 +210,10 @@ export default function UploadPanel({ onSubmit }: Props) {
 
                             <p className="text-xs text-teal-800 flex items-center gap-1.5 mt-0.5 font-medium">
                                 <CheckCircle2 size={13} className="text-teal-600" />
-                                {(file.size / (1024 * 1024)).toFixed(2)} MB &bull; Ready to process
+                                {(file.size / (1024 * 1024)).toFixed(2)} MB &bull; Tap to change file
                             </p>
                         </div>
-                    </div>
+                    </label>
 
                     <button
                         type="button"

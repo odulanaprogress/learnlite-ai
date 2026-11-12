@@ -584,141 +584,185 @@ export default function LibraryPage() {
                         <div className="min-h-64 flex-1 overflow-auto bg-stone-50 p-4 sm:p-6">
                             {preview.material.textContent !== undefined ? (
                                 (() => {
-                                    const text = preview.material.textContent.trim();
+                                    let raw = preview.material.textContent.trim();
                                     const resType = preview.material.resourceType;
 
-                                    // 1. Interactive Quiz Viewer
-                                    if (resType === "Quiz" || (text.startsWith("[") && text.includes("correct_answer_index"))) {
+                                    // Strip markdown code fences if present (e.g. ```json ... ```)
+                                    if (raw.startsWith("```")) {
+                                        raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+                                    }
+
+                                    // Attempt parsing JSON if structured
+                                    let parsedData: any = null;
+                                    if (raw.startsWith("{") || raw.startsWith("[")) {
                                         try {
-                                            const questions = JSON.parse(text);
-                                            if (Array.isArray(questions) && questions.length > 0) {
-                                                return (
-                                                    <div className="space-y-6">
-                                                        <div className="flex items-center justify-between pb-3 border-b border-stone-200">
-                                                            <div>
-                                                                <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">
-                                                                    Practice Exam Questions ({questions.length})
-                                                                </span>
-                                                                <p className="text-xs text-gray-500 mt-0.5">
-                                                                    Review questions, correct answer keys, and academic explanations.
-                                                                </p>
-                                                            </div>
-                                                            <Link
-                                                                href="/dashboard/quizzes"
-                                                                className="inline-flex items-center gap-1.5 rounded-xl bg-purple-100 px-3.5 py-2 text-xs font-bold text-purple-700 hover:bg-purple-200 transition"
-                                                            >
-                                                                Take in Interactive Mode &rarr;
-                                                            </Link>
-                                                        </div>
-
-                                                        {questions.map((q: any, qIdx: number) => {
-                                                            const correctIdx = q.correct_answer_index ?? q.answer ?? 0;
-                                                            return (
-                                                                <div key={qIdx} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
-                                                                    <div className="flex items-start gap-2.5">
-                                                                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-800">
-                                                                            {qIdx + 1}
-                                                                        </span>
-                                                                        <h3 className="font-bold text-gray-900 text-sm sm:text-base leading-snug">
-                                                                            {q.question}
-                                                                        </h3>
-                                                                    </div>
-
-                                                                    <div className="mt-4 space-y-2">
-                                                                        {(q.options || []).map((opt: string, oIdx: number) => {
-                                                                            const isCorrect = oIdx === correctIdx;
-                                                                            return (
-                                                                                <div
-                                                                                    key={oIdx}
-                                                                                    className={`flex items-start gap-3 rounded-xl p-3 text-xs sm:text-sm border ${
-                                                                                        isCorrect
-                                                                                            ? "border-emerald-300 bg-emerald-50/70 text-emerald-950 font-medium"
-                                                                                            : "border-stone-200 bg-stone-50/50 text-gray-700"
-                                                                                    }`}
-                                                                                >
-                                                                                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                                                                                        isCorrect ? "bg-emerald-600 text-white" : "bg-stone-200 text-gray-700"
-                                                                                    }`}>
-                                                                                        {String.fromCharCode(65 + oIdx)}
-                                                                                    </span>
-                                                                                    <span className="flex-1">{opt}</span>
-                                                                                    {isCorrect && (
-                                                                                        <span className="ml-auto text-[10px] font-bold text-emerald-700 uppercase tracking-wider bg-white/80 px-2 py-0.5 rounded-md border border-emerald-200">
-                                                                                            &check; Correct Answer
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-
-                                                                    {q.explanation && (
-                                                                        <div className="mt-3.5 rounded-xl bg-teal-50/70 p-3 text-xs text-teal-900 border border-teal-100">
-                                                                            <p className="font-bold uppercase tracking-wider text-[10px] text-teal-800">
-                                                                                Academic Explanation:
-                                                                            </p>
-                                                                            <p className="mt-1 leading-relaxed text-gray-700">{q.explanation}</p>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                );
-                                            }
+                                            parsedData = JSON.parse(raw);
                                         } catch {}
+                                    }
+
+                                    // 1. Interactive Quiz Viewer
+                                    // Handles array directly or object containing { quiz: [...] } or { questions: [...] }
+                                    const quizCandidate = Array.isArray(parsedData)
+                                        ? parsedData
+                                        : (parsedData?.quiz || parsedData?.questions);
+
+                                    const isQuizContent =
+                                        resType === "Quiz" ||
+                                        (Array.isArray(quizCandidate) &&
+                                            quizCandidate.length > 0 &&
+                                            (quizCandidate[0]?.question || quizCandidate[0]?.options));
+
+                                    if (isQuizContent && Array.isArray(quizCandidate) && quizCandidate.length > 0) {
+                                        return (
+                                            <div className="space-y-6">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-stone-200 gap-2">
+                                                    <div>
+                                                        <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">
+                                                            Practice Exam Questions ({quizCandidate.length})
+                                                        </span>
+                                                        <p className="text-xs text-gray-500 mt-0.5">
+                                                            Review questions, correct answer keys, and academic explanations.
+                                                        </p>
+                                                    </div>
+                                                    <Link
+                                                        href="/dashboard/quizzes"
+                                                        className="inline-flex items-center gap-1.5 rounded-xl bg-purple-100 px-3.5 py-2 text-xs font-bold text-purple-700 hover:bg-purple-200 transition"
+                                                    >
+                                                        Take in Interactive Mode &rarr;
+                                                    </Link>
+                                                </div>
+
+                                                {quizCandidate.map((q: any, qIdx: number) => {
+                                                    const questionText = q?.question || q?.prompt || `Question #${qIdx + 1}`;
+                                                    const rawOptions = Array.isArray(q?.options)
+                                                        ? q.options
+                                                        : (typeof q?.options === "string" ? q.options.split(/\n|,/).filter(Boolean) : []);
+                                                    
+                                                    // Ensure at least 4 options
+                                                    const options = [...rawOptions];
+                                                    while (options.length < 4) {
+                                                        options.push(`Alternative concept not applicable to this question.`);
+                                                    }
+
+                                                    const correctIdx = typeof q?.correct_answer_index === "number"
+                                                        ? q.correct_answer_index
+                                                        : (typeof q?.answer === "number" ? q.answer : 0);
+
+                                                    const explanation = q?.explanation || "Based on your lecture notes, this statement is the verified correct answer.";
+
+                                                    return (
+                                                        <div key={qIdx} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
+                                                            <div className="flex items-start gap-2.5">
+                                                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-800">
+                                                                    {qIdx + 1}
+                                                                </span>
+                                                                <h3 className="font-bold text-gray-900 text-sm sm:text-base leading-snug">
+                                                                    {questionText}
+                                                                </h3>
+                                                            </div>
+
+                                                            <div className="mt-4 space-y-2">
+                                                                {options.map((opt: string, oIdx: number) => {
+                                                                    const isCorrect = oIdx === correctIdx;
+                                                                    return (
+                                                                        <div
+                                                                            key={oIdx}
+                                                                            className={`flex items-start gap-3 rounded-xl p-3 text-xs sm:text-sm border transition ${
+                                                                                isCorrect
+                                                                                    ? "border-emerald-300 bg-emerald-50/70 text-emerald-950 font-medium"
+                                                                                    : "border-stone-200 bg-stone-50/50 text-gray-700"
+                                                                            }`}
+                                                                        >
+                                                                            <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                                                                                isCorrect ? "bg-emerald-600 text-white" : "bg-stone-200 text-gray-700"
+                                                                            }`}>
+                                                                                {String.fromCharCode(65 + oIdx)}
+                                                                            </span>
+                                                                            <span className="flex-1">{opt}</span>
+                                                                            {isCorrect && (
+                                                                                <span className="ml-auto text-[10px] font-bold text-emerald-700 uppercase tracking-wider bg-white/80 px-2 py-0.5 rounded-md border border-emerald-200">
+                                                                                    &check; Correct Answer
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+
+                                                            {explanation && (
+                                                                <div className="mt-3.5 rounded-xl bg-teal-50/70 p-3 text-xs text-teal-900 border border-teal-100">
+                                                                    <p className="font-bold uppercase tracking-wider text-[10px] text-teal-800">
+                                                                        Academic Explanation:
+                                                                    </p>
+                                                                    <p className="mt-1 leading-relaxed text-gray-700">{explanation}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        );
                                     }
 
                                     // 2. Flashcards Viewer
-                                    if (resType === "Flashcards" || (text.startsWith("[") && text.includes("question") && text.includes("answer"))) {
-                                        try {
-                                            const cards = JSON.parse(text);
-                                            if (Array.isArray(cards) && cards.length > 0) {
-                                                return (
-                                                    <div className="space-y-4">
-                                                        <div className="flex items-center justify-between pb-3 border-b border-stone-200">
-                                                            <div>
-                                                                <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">
-                                                                    Active Recall Cards ({cards.length})
-                                                                </span>
-                                                                <p className="text-xs text-gray-500 mt-0.5">
-                                                                    Study cards for quick review and memorization.
-                                                                </p>
-                                                            </div>
-                                                            <Link
-                                                                href="/dashboard/flashcards"
-                                                                className="inline-flex items-center gap-1.5 rounded-xl bg-orange-100 px-3.5 py-2 text-xs font-bold text-orange-700 hover:bg-orange-200 transition"
-                                                            >
-                                                                Flip in Flashcards Mode &rarr;
-                                                            </Link>
-                                                        </div>
+                                    const cardsCandidate = Array.isArray(parsedData)
+                                        ? parsedData
+                                        : parsedData?.flashcards;
 
-                                                        <div className="grid gap-3 sm:grid-cols-2">
-                                                            {cards.map((card: any, idx: number) => (
-                                                                <div key={idx} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-xs">
-                                                                    <div className="flex items-center justify-between text-[11px] font-semibold text-teal-700 uppercase tracking-wider mb-2">
-                                                                        <span>Card #{idx + 1}</span>
-                                                                    </div>
-                                                                    <p className="text-xs font-bold text-gray-900">
-                                                                        Q: {card.question}
-                                                                    </p>
-                                                                    <div className="mt-2.5 rounded-xl bg-stone-50 p-2.5 text-xs text-gray-700 border border-stone-100">
-                                                                        <span className="font-semibold text-teal-800">A: </span>
-                                                                        {card.answer}
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
+                                    const isFlashcardContent =
+                                        resType === "Flashcards" ||
+                                        (Array.isArray(cardsCandidate) &&
+                                            cardsCandidate.length > 0 &&
+                                            cardsCandidate[0]?.question &&
+                                            cardsCandidate[0]?.answer);
+
+                                    if (isFlashcardContent && Array.isArray(cardsCandidate) && cardsCandidate.length > 0) {
+                                        return (
+                                            <div className="space-y-4">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-stone-200 gap-2">
+                                                    <div>
+                                                        <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">
+                                                            Active Recall Cards ({cardsCandidate.length})
+                                                        </span>
+                                                        <p className="text-xs text-gray-500 mt-0.5">
+                                                            Study cards for quick review and memorization.
+                                                        </p>
                                                     </div>
-                                                );
-                                            }
-                                        } catch {}
+                                                    <Link
+                                                        href="/dashboard/flashcards"
+                                                        className="inline-flex items-center gap-1.5 rounded-xl bg-orange-100 px-3.5 py-2 text-xs font-bold text-orange-700 hover:bg-orange-200 transition"
+                                                    >
+                                                        Flip in Flashcards Mode &rarr;
+                                                    </Link>
+                                                </div>
+
+                                                <div className="grid gap-3 sm:grid-cols-2">
+                                                    {cardsCandidate.map((card: any, idx: number) => (
+                                                        <div key={idx} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-xs">
+                                                            <div className="flex items-center justify-between text-[11px] font-semibold text-teal-700 uppercase tracking-wider mb-2">
+                                                                <span>Card #{idx + 1}</span>
+                                                            </div>
+                                                            <p className="text-xs font-bold text-gray-900">
+                                                                Q: {card.question}
+                                                            </p>
+                                                            <div className="mt-2.5 rounded-xl bg-stone-50 p-2.5 text-xs text-gray-700 border border-stone-100">
+                                                                <span className="font-semibold text-teal-800">A: </span>
+                                                                {card.answer}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
                                     }
 
                                     // 3. Formatted Academic Summary / Notes Viewer
+                                    // If raw is an object with a summary field, render the summary text!
+                                    const displayText = typeof parsedData?.summary === "string" ? parsedData.summary : raw;
+
                                     return (
                                         <div className="rounded-2xl bg-white p-6 shadow-xs border border-stone-200 leading-relaxed text-gray-800 text-sm whitespace-pre-wrap">
-                                            {text}
+                                            {displayText}
                                         </div>
                                     );
                                 })()

@@ -286,21 +286,31 @@ export const api = {
           return offlinePack;
         }
 
-        const res = await fetch(`${API_BASE_URL}/api/v1/documents/process-and-generate`, {
-          method: "POST",
-          headers,
-          body,
-        });
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/v1/documents/process-and-generate`, {
+            method: "POST",
+            headers,
+            body,
+          });
 
-        const json = await res.json();
+          const json = await res.json();
 
-        if (!res.ok) {
-          throw new Error(json?.error || json?.message || "Failed to process document and generate study pack.");
+          if (!res.ok) {
+            throw new Error(json?.error || json?.message || "Failed to process document and generate study pack.");
+          }
+
+          const pack = (json?.data ?? json) as StudyPack;
+          api.saveLatestStudyPack(pack);
+          return pack;
+        } catch (fetchErr: any) {
+          if (params.text) {
+            console.warn("[LearnLite API] Network request failed. Falling back to client-side study generator:", fetchErr);
+            const offlinePack = generateOfflineStudyPack(params.text, params.filename, params.difficulty);
+            api.saveLatestStudyPack(offlinePack);
+            return offlinePack;
+          }
+          throw fetchErr;
         }
-
-        const pack = (json?.data ?? json) as StudyPack;
-        api.saveLatestStudyPack(pack);
-        return pack;
       } finally {
         if (eventSource) {
           eventSource.close();
