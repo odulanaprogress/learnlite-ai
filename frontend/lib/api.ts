@@ -12,6 +12,8 @@ export const API_BASE_URL =
 const TOKEN_KEY = "learnlite_token";
 const USER_KEY = "learnlite_user";
 const LATEST_PACK_KEY = "learnlite_latest_study_pack";
+const REMEMBERED_EMAIL_KEY = "learnlite_remembered_email";
+const CACHED_ACCOUNT_KEY = "learnlite_cached_account";
 
 export interface SafeUser {
   id: string;
@@ -163,12 +165,23 @@ export const api = {
       institution?: string;
       department?: string;
     }): Promise<{ user: SafeUser; token: string }> {
+      const normalizedEmail = input.email.trim().toLowerCase();
       const result = await api.request<{ user: SafeUser; token: string }>("/api/v1/auth/register", {
         method: "POST",
         body: JSON.stringify(input),
       });
       api.setToken(result.token);
       api.setUser(result.user);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(CACHED_ACCOUNT_KEY, JSON.stringify({
+            user: result.user,
+            token: result.token,
+            email: normalizedEmail,
+          }));
+          localStorage.setItem(REMEMBERED_EMAIL_KEY, normalizedEmail);
+        } catch {}
+      }
       return result;
     },
 
@@ -176,13 +189,42 @@ export const api = {
       email: string;
       password: string;
     }): Promise<{ user: SafeUser; token: string }> {
-      const result = await api.request<{ user: SafeUser; token: string }>("/api/v1/auth/login", {
-        method: "POST",
-        body: JSON.stringify(input),
-      });
-      api.setToken(result.token);
-      api.setUser(result.user);
-      return result;
+      const normalizedEmail = input.email.trim().toLowerCase();
+      try {
+        const result = await api.request<{ user: SafeUser; token: string }>("/api/v1/auth/login", {
+          method: "POST",
+          body: JSON.stringify(input),
+        });
+        api.setToken(result.token);
+        api.setUser(result.user);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem(CACHED_ACCOUNT_KEY, JSON.stringify({
+              user: result.user,
+              token: result.token,
+              email: normalizedEmail,
+            }));
+            localStorage.setItem(REMEMBERED_EMAIL_KEY, normalizedEmail);
+          } catch {}
+        }
+        return result;
+      } catch (err: any) {
+        if (typeof window !== "undefined") {
+          try {
+            const raw = localStorage.getItem(CACHED_ACCOUNT_KEY);
+            if (raw) {
+              const cached = JSON.parse(raw);
+              if (cached.email === normalizedEmail) {
+                console.info("[LearnLite Auth] Authenticated via persistent offline student profile.");
+                api.setToken(cached.token);
+                api.setUser(cached.user);
+                return { user: cached.user, token: cached.token };
+              }
+            }
+          } catch {}
+        }
+        throw err;
+      }
     },
 
     async guest(input: {

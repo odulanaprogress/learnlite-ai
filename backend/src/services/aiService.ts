@@ -200,54 +200,106 @@ export class AIServiceClient {
       }
     } catch {}
 
-    // 5. Image OCR with Vision API if available
-    if (isImage && config.groqApiKey) {
-      try {
-        const base64Image = fileBuffer.toString("base64");
-        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${config.groqApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: config.groqVisionModel || "llama-3.2-11b-vision-preview",
-            messages: [
-              {
-                role: "user",
-                content: [
+    // 5. Image OCR with Gemini Vision or Groq Vision API
+    if (isImage && (config.geminiApiKey || config.groqApiKey)) {
+      const base64Image = fileBuffer.toString("base64");
+
+      // A. Gemini Vision (Highest accuracy for camera snaps of handwritten or printed notes)
+      if (config.geminiApiKey) {
+        try {
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${config.geminiApiKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [
                   {
-                    type: "text",
-                    text: "Extract all academic text, headings, numbers, and diagrams from this lecture note image. Return only the extracted notes text.",
-                  },
-                  {
-                    type: "image_url",
-                    image_url: {
-                      url: `data:${mimeType || "image/jpeg"};base64,${base64Image}`,
-                    },
+                    parts: [
+                      {
+                        text: "You are LearnLite OCR Engine. Transcribe and extract all lecture notes, headings, handwritten or printed text, diagrams, bullet points, and definitions from this camera photo accurately into clean, well-formatted text. Do not add conversational commentary, return only the extracted notes text.",
+                      },
+                      {
+                        inlineData: {
+                          mimeType: mimeType || "image/jpeg",
+                          data: base64Image,
+                        },
+                      },
+                    ],
                   },
                 ],
-              },
-            ],
-            max_tokens: 3000,
-          }),
-          signal: AbortSignal.timeout(30000),
-        });
+              }),
+              signal: AbortSignal.timeout(30000),
+            }
+          );
 
-        if (groqRes.ok) {
-          const data = (await groqRes.json()) as any;
-          const extractedText = data.choices?.[0]?.message?.content || "";
-          return {
-            filename: fileName,
-            total_pages: 1,
-            extracted_pages: 1,
-            total_characters: extractedText.length,
-            extraction_status: "success",
-            pages: [{ page_number: 1, text: extractedText }],
-          };
+          if (geminiRes.ok) {
+            const data = (await geminiRes.json()) as any;
+            const extractedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            if (extractedText.trim().length > 10) {
+              return {
+                filename: fileName,
+                total_pages: 1,
+                extracted_pages: 1,
+                total_characters: extractedText.length,
+                extraction_status: "success",
+                pages: [{ page_number: 1, text: extractedText.trim() }],
+              };
+            }
+          }
+        } catch (e: any) {
+          console.warn(`[AIService] Gemini Vision OCR failed: ${e.message}`);
         }
-      } catch (e: any) {
-        console.warn(`[AIService] Vision OCR failed: ${e.message}`);
+      }
+
+      // B. Groq Vision as alternative
+      if (config.groqApiKey) {
+        try {
+          const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${config.groqApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: config.groqVisionModel || "llama-3.2-11b-vision-preview",
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    {
+                      type: "text",
+                      text: "Extract all academic text, headings, numbers, and diagrams from this lecture note image. Return only the extracted notes text.",
+                    },
+                    {
+                      type: "image_url",
+                      image_url: {
+                        url: `data:${mimeType || "image/jpeg"};base64,${base64Image}`,
+                      },
+                    },
+                  ],
+                },
+              ],
+              max_tokens: 3000,
+            }),
+            signal: AbortSignal.timeout(30000),
+          });
+
+          if (groqRes.ok) {
+            const data = (await groqRes.json()) as any;
+            const extractedText = data.choices?.[0]?.message?.content || "";
+            return {
+              filename: fileName,
+              total_pages: 1,
+              extracted_pages: 1,
+              total_characters: extractedText.length,
+              extraction_status: "success",
+              pages: [{ page_number: 1, text: extractedText }],
+            };
+          }
+        } catch (e: any) {
+          console.warn(`[AIService] Groq Vision OCR failed: ${e.message}`);
+        }
       }
     }
 
