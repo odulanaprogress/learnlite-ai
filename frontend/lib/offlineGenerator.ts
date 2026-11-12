@@ -17,9 +17,14 @@ export function generateOfflineStudyPack(
     .map((s) => s.trim())
     .filter((s) => s.length > 20);
 
-  // 1. Summary
-  const summarySentences = sentences.slice(0, Math.min(4, sentences.length));
-  const summary = summarySentences.join(". ") + (summarySentences.length > 0 ? "." : "");
+  // 1. Coherent, Structured Academic Summary
+  const overviewSentences = sentences.slice(0, 3).join(". ") + (sentences.length > 0 ? "." : "");
+  const detailPoints = sentences
+    .slice(3, 7)
+    .map((s) => `• ${s}.`)
+    .join("\n");
+
+  const summary = `### 📖 Executive Overview\n${overviewSentences}\n\n### 🔑 Core Principles & Mechanisms\n${detailPoints || "• Foundational lecture principles and key definitions."}\n\n### 💡 Key Takeaways for Revision\nReview the key definitions and active recall flashcards to prepare for exams on ${filename}.`;
 
   // 2. Extract potential key terms (capitalized words, terms followed by is/are/refers to)
   const keyConcepts: KeyConcept[] = [];

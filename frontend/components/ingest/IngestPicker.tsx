@@ -88,10 +88,20 @@ export default function IngestPicker() {
         setPhase("processing");
 
         try {
+            let directText: string | undefined = isText ? (payload as string) : undefined;
+            if (!isText && payload instanceof File) {
+                const ext = payload.name.split(".").pop()?.toLowerCase() || "";
+                if (["txt", "md", "csv", "json"].includes(ext) || payload.type.startsWith("text/")) {
+                    try {
+                        directText = await payload.text();
+                    } catch {}
+                }
+            }
+
             // 1. Process document & generate study resources via live backend SSE pipeline
             const pack = await api.documents.processAndGenerate({
-                file: !isText ? payload : undefined,
-                text: isText ? payload : undefined,
+                file: !isText && !directText ? payload : undefined,
+                text: directText,
                 filename: !isText ? payload.name : "Lecture Notes",
                 difficulty: "intermediate",
                 onProgress: (evt) => {

@@ -27,6 +27,34 @@ type QuizItem = {
     explanation: string;
 };
 
+function sanitizeQuizItem(q: any): QuizItem {
+    let questionText = typeof q?.question === "string" ? q.question : (q?.prompt || "Practice question");
+    if (typeof q?.question === "object" && q.question !== null) {
+        questionText = q.question.question || JSON.stringify(q.question);
+    }
+
+    let options: string[] = [];
+    if (Array.isArray(q?.options)) {
+        options = q.options.map((opt: any) => typeof opt === "string" ? opt : (opt?.text || String(opt)));
+    } else if (typeof q?.options === "string") {
+        try { options = JSON.parse(q.options); } catch { options = q.options.split(/\n|,/).filter(Boolean); }
+    }
+
+    while (options.length < 4) {
+        options.push("Alternative concept not applicable to this question.");
+    }
+
+    const answer = typeof q?.correct_answer_index === "number" 
+        ? q.correct_answer_index 
+        : (typeof q?.answer === "number" ? q.answer : 0);
+
+    const explanation = typeof q?.explanation === "string" 
+        ? q.explanation 
+        : "According to your lecture notes, this statement is the verified correct answer.";
+
+    return { question: questionText, options, answer, explanation };
+}
+
 const defaultQuestions: QuizItem[] = [
     {
         question: "Which organelle is known as the powerhouse of the cell?",
@@ -82,14 +110,7 @@ export default function QuizzesPage() {
         const pack = api.getLatestStudyPack();
         if (pack && pack.quiz && pack.quiz.length > 0) {
             setActivePack(pack);
-            setQuestions(
-                pack.quiz.map((q) => ({
-                    question: q.question,
-                    options: q.options,
-                    answer: q.correct_answer_index,
-                    explanation: q.explanation,
-                }))
-            );
+            setQuestions(pack.quiz.map(sanitizeQuizItem));
             setIsCustom(true);
             return;
         }
@@ -101,14 +122,7 @@ export default function QuizzesPage() {
                     try {
                         const parsed = JSON.parse(res.textContent);
                         if (Array.isArray(parsed) && parsed.length > 0) {
-                            setQuestions(
-                                parsed.map((q: any) => ({
-                                    question: q.question,
-                                    options: q.options,
-                                    answer: q.correct_answer_index ?? q.answer ?? 0,
-                                    explanation: q.explanation || "Correct answer.",
-                                }))
-                            );
+                            setQuestions(parsed.map(sanitizeQuizItem));
                             setIsCustom(true);
                         }
                     } catch {}

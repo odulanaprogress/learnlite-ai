@@ -450,7 +450,12 @@ export default function TutorPage() {
                                                         </p>
                                                         {msg.sources.map((src, i) => (
                                                             <div key={i} className="mt-1 rounded-lg bg-white/80 p-2 text-[11px] text-gray-600 border border-stone-200/50">
-                                                                <span className="font-semibold text-teal-700">Page {src.page_number}:</span> &quot;{src.excerpt}&quot;
+                                                                {src.excerpt.includes("Web Knowledge") || src.excerpt.includes("Wikipedia") || src.excerpt.includes("DuckDuckGo") ? (
+                                                                    <span className="font-bold text-blue-700">🌐 Web Reference: </span>
+                                                                ) : (
+                                                                    <span className="font-semibold text-teal-700">Page {src.page_number}: </span>
+                                                                )}
+                                                                &quot;{src.excerpt}&quot;
                                                             </div>
                                                         ))}
                                                     </div>
