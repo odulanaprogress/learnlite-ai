@@ -1,3 +1,5 @@
+import { generateOfflineStudyPack } from "./offlineGenerator";
+import { answerOfflineQuestion } from "./offlineTutor";
 /**
  * LearnLite AI API Client
  * Connects the frontend directly to the production backend on Render.
@@ -276,6 +278,12 @@ export const api = {
           });
         } else {
           throw new Error("Either a file or text content is required.");
+        }
+
+        if (typeof window !== "undefined" && !navigator.onLine && params.text) {
+          const offlinePack = generateOfflineStudyPack(params.text, params.filename, params.difficulty);
+          api.saveLatestStudyPack(offlinePack);
+          return offlinePack;
         }
 
         const res = await fetch(`${API_BASE_URL}/api/v1/documents/process-and-generate`, {

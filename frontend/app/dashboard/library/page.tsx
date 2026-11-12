@@ -1,6 +1,6 @@
-
 "use client";
 
+import OfflineStatusBar from "@/components/offline/OfflineStatusBar";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -262,15 +262,18 @@ export default function LibraryPage() {
                         Back to dashboard
                     </Link>
 
-                    <Link
-                        href="/"
-                        className="flex items-center gap-2 font-bold text-gray-900"
-                    >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100 text-teal-700">
-                            <BookOpen size={19} />
-                        </span>
-                        LearnLite
-                    </Link>
+                    <div className="flex items-center gap-3">
+                        <OfflineStatusBar />
+                        <Link
+                            href="/"
+                            className="flex items-center gap-2 font-bold text-gray-900"
+                        >
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100 text-teal-700">
+                                <BookOpen size={19} />
+                            </span>
+                            LearnLite
+                        </Link>
+                    </div>
                 </div>
             </header>
 

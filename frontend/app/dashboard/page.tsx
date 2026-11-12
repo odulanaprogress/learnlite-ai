@@ -27,6 +27,9 @@ import {
 } from "lucide-react";
 
 import IngestPicker from "@/components/ingest/IngestPicker";
+import OfflineStatusBar from "@/components/offline/OfflineStatusBar";
+import { downloadStudyPackFile } from "@/lib/exportStudyPack";
+import { Download } from "lucide-react";
 import UserProfile from "@/components/dashboard/UserProfile";
 import { getLibraryMaterials, type LibraryMaterial } from "@/lib/library";
 
@@ -261,6 +264,7 @@ export default function DashboardPage() {
 
                             {/* Profile and notifications */}
                             <div className="ml-auto flex items-center gap-3">
+                                <OfflineStatusBar />
                                 <Link
                                     href="/dashboard/library"
                                     aria-label="Open your library"

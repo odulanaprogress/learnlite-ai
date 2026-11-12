@@ -12,9 +12,13 @@ import {
     ChevronRight,
     Trophy,
     Sparkles,
+    Download,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, type StudyPack } from "@/lib/api";
 import { getLibraryMaterials } from "@/lib/library";
+import { downloadStudyPackFile } from "@/lib/exportStudyPack";
+import OfflineStatusBar from "@/components/offline/OfflineStatusBar";
+import { toast } from "sonner";
 
 type QuizItem = {
     question: string;
@@ -72,10 +76,12 @@ export default function QuizzesPage() {
     const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
     const [submitted, setSubmitted] = useState(false);
     const [isCustom, setIsCustom] = useState(false);
+    const [activePack, setActivePack] = useState<StudyPack | null>(null);
 
     useEffect(() => {
         const pack = api.getLatestStudyPack();
         if (pack && pack.quiz && pack.quiz.length > 0) {
+            setActivePack(pack);
             setQuestions(
                 pack.quiz.map((q) => ({
                     question: q.question,
@@ -113,7 +119,7 @@ export default function QuizzesPage() {
 
     const currentQuestion = questions[currentIndex] || questions[0];
     const selectedAnswer = selectedAnswers[currentIndex];
-    const progress = ((currentIndex + 1) / questions.length) * 100;
+    const progress = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
 
     const score = questions.reduce((total, question, index) => {
         return total + (selectedAnswers[index] === question.answer ? 1 : 0);
@@ -144,6 +150,7 @@ export default function QuizzesPage() {
 
     function handleSubmit() {
         if (Object.keys(selectedAnswers).length !== questions.length) {
+            toast.error("Please answer all questions before submitting.");
             return;
         }
 
@@ -154,6 +161,33 @@ export default function QuizzesPage() {
         setCurrentIndex(0);
         setSelectedAnswers({});
         setSubmitted(false);
+    }
+
+    function handleDownloadQuiz() {
+        if (activePack) {
+            downloadStudyPackFile(activePack, "txt");
+            toast.success("Full study pack with practice quiz downloaded!");
+            return;
+        }
+
+        const packToExport: StudyPack = {
+            id: "quiz_" + Date.now(),
+            filename: "Practice Quiz",
+            difficulty: "intermediate",
+            summary: "Practice exam questions saved for offline study on this device.",
+            key_concepts: [],
+            flashcards: [],
+            quiz: questions.map((q) => ({
+                question: q.question,
+                options: q.options,
+                correct_answer_index: q.answer,
+                explanation: q.explanation,
+            })),
+            createdAt: new Date().toISOString(),
+        };
+
+        downloadStudyPackFile(packToExport, "txt");
+        toast.success("Practice quiz downloaded to your device for offline study!");
     }
 
     return (
@@ -168,186 +202,178 @@ export default function QuizzesPage() {
                         Dashboard
                     </Link>
 
-                    <Link href="/" className="flex items-center gap-2 font-bold text-gray-900">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
-                            <GraduationCap size={21} />
-                        </span>
-                        LearnLite
-                    </Link>
+                    <div className="flex items-center gap-3">
+                        <OfflineStatusBar />
+
+                        <Link href="/" className="flex items-center gap-2 font-bold text-gray-900">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
+                                <GraduationCap size={21} />
+                            </span>
+                            <span className="hidden sm:inline">LearnLite</span>
+                        </Link>
+                    </div>
                 </div>
             </header>
 
             <section className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-                <div className="mb-6 flex items-center justify-between">
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
                     <div>
-                        <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold uppercase tracking-wider text-teal-700">
-                                Practice Quizzes
-                            </p>
-                            {isCustom && (
-                                <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-semibold text-purple-700">
-                                    AI-Generated
-                                </span>
-                            )}
-                        </div>
-
-                        <h1 className="mt-1 text-3xl font-bold text-gray-900">
-                            Test Your Understanding
-                        </h1>
-                    </div>
-
-                    <div className="flex items-center gap-2 rounded-2xl bg-white px-4 py-2 border border-stone-200">
-                        <ClipboardList size={18} className="text-teal-700" />
-                        <span className="text-sm font-semibold text-gray-700">
-                            {currentIndex + 1} of {questions.length}
-                        </span>
-                    </div>
-                </div>
-
-                <div className="mb-6 h-2 w-full overflow-hidden rounded-full bg-stone-200">
-                    <div
-                        className="h-full bg-teal-600 transition-all duration-300"
-                        style={{ width: `${progress}%` }}
-                    />
-                </div>
-
-                {!submitted ? (
-                    <div className="rounded-3xl border border-stone-200 bg-white p-6 sm:p-8 shadow-sm">
-                        <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
-                            {currentQuestion?.question}
-                        </h2>
-
-                        <div className="mt-6 space-y-3">
-                            {currentQuestion?.options.map((option, index) => {
-                                const selected = selectedAnswer === index;
-
-                                return (
-                                    <button
-                                        key={index}
-                                        type="button"
-                                        onClick={() => selectAnswer(index)}
-                                        className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition-all ${
-                                            selected
-                                                ? "border-teal-600 bg-teal-50 ring-2 ring-teal-100"
-                                                : "border-stone-200 hover:border-teal-200 hover:bg-stone-50"
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <span
-                                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
-                                                    selected
-                                                        ? "bg-teal-700 text-white"
-                                                        : "bg-stone-100 text-gray-600"
-                                                }`}
-                                            >
-                                                {String.fromCharCode(65 + index)}
-                                            </span>
-                                            <span className="text-sm font-medium text-gray-900">
-                                                {option}
-                                            </span>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        <div className="mt-8 flex items-center justify-between border-t border-stone-100 pt-6">
-                            <button
-                                type="button"
-                                onClick={goPrevious}
-                                disabled={currentIndex === 0}
-                                className="rounded-xl border border-stone-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-stone-50 disabled:opacity-40"
-                            >
-                                Previous
-                            </button>
-
-                            {currentIndex < questions.length - 1 ? (
-                                <button
-                                    type="button"
-                                    onClick={goNext}
-                                    disabled={selectedAnswer === undefined}
-                                    className="flex items-center gap-2 rounded-xl bg-teal-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
-                                >
-                                    Next
-                                    <ChevronRight size={17} />
-                                </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    onClick={handleSubmit}
-                                    disabled={Object.keys(selectedAnswers).length !== questions.length}
-                                    className="flex items-center gap-2 rounded-xl bg-teal-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
-                                >
-                                    Submit Quiz
-                                    <Sparkles size={17} />
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="rounded-3xl border border-stone-200 bg-white p-8 text-center shadow-sm">
-                        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-100 text-teal-700">
-                            <Trophy size={32} />
-                        </span>
-
-                        <h2 className="mt-4 text-2xl font-bold text-gray-900">
-                            Quiz Completed!
-                        </h2>
-
-                        <p className="mt-1 text-sm text-gray-500">
-                            You scored {score} out of {questions.length} questions correctly.
+                        <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">
+                            Exam Prep &amp; Knowledge Check
                         </p>
 
-                        <div className="mt-8 space-y-4 text-left">
-                            {questions.map((q, idx) => {
-                                const isCorrect = selectedAnswers[idx] === q.answer;
-                                return (
-                                    <div
-                                        key={idx}
-                                        className={`rounded-2xl border p-4 ${
-                                            isCorrect
-                                                ? "border-green-200 bg-green-50/50"
-                                                : "border-red-200 bg-red-50/50"
-                                        }`}
-                                    >
-                                        <div className="flex items-start gap-2.5">
-                                            {isCorrect ? (
-                                                <CheckCircle2 size={18} className="mt-0.5 text-green-600 shrink-0" />
-                                            ) : (
-                                                <XCircle size={18} className="mt-0.5 text-red-600 shrink-0" />
-                                            )}
-                                            <div>
-                                                <p className="text-sm font-semibold text-gray-900">
-                                                    {idx + 1}. {q.question}
-                                                </p>
-                                                <p className="mt-1 text-xs text-gray-600">
-                                                    Your answer: <span className="font-medium">{q.options[selectedAnswers[idx]]}</span>
-                                                </p>
-                                                {!isCorrect && (
-                                                    <p className="mt-0.5 text-xs text-green-700 font-medium">
-                                                        Correct answer: {q.options[q.answer]}
-                                                    </p>
-                                                )}
-                                                <p className="mt-1 text-xs text-gray-500 italic">
-                                                    {q.explanation}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                        <h1 className="mt-1 text-2xl font-bold text-gray-900 sm:text-3xl">
+                            Practice Quizzes
+                        </h1>
 
-                        <button
-                            type="button"
-                            onClick={restartQuiz}
-                            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-teal-700 px-6 py-3 text-sm font-semibold text-white hover:bg-teal-800"
-                        >
-                            <RotateCcw size={17} />
-                            Retry Quiz
-                        </button>
+                        <p className="mt-1 text-xs text-gray-500 sm:text-sm">
+                            Evaluate your mastery with exam-style questions. Works 100% offline.
+                        </p>
                     </div>
-                )}
+
+                    <button
+                        type="button"
+                        onClick={handleDownloadQuiz}
+                        className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-stone-50"
+                    >
+                        <Download size={16} />
+                        Export Quiz (.txt)
+                    </button>
+                </div>
+
+                <div className="mt-6 rounded-3xl border border-stone-200 bg-white p-5 sm:p-8 shadow-sm">
+                    {submitted ? (
+                        /* Results screen */
+                        <div className="text-center py-6">
+                            <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-50 text-teal-700">
+                                <Trophy size={32} />
+                            </span>
+
+                            <h2 className="mt-5 text-2xl font-bold text-gray-900">
+                                Quiz Completed!
+                            </h2>
+
+                            <p className="mt-2 text-sm text-gray-500">
+                                You scored <span className="font-bold text-teal-700">{score}</span> out of {questions.length} ({Math.round((score / questions.length) * 100)}%)
+                            </p>
+
+                            <div className="mt-6 flex flex-wrap justify-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={restartQuiz}
+                                    className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-800"
+                                >
+                                    <RotateCcw size={17} />
+                                    Retake Quiz
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={handleDownloadQuiz}
+                                    className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-stone-50"
+                                >
+                                    <Download size={17} />
+                                    Download Questions &amp; Answers
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        /* Question screen */
+                        <>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-xs sm:text-sm font-semibold text-gray-700">
+                                    Question {currentIndex + 1} of {questions.length}
+                                </span>
+
+                                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                    isCustom
+                                        ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                        : "bg-teal-50 text-teal-700"
+                                }`}>
+                                    {isCustom ? "AI-Generated Assessment" : "Standard Practice"}
+                                </span>
+                            </div>
+
+                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-100">
+                                <div
+                                    className="h-full rounded-full bg-teal-600 transition-all duration-300"
+                                    style={{ width: `${progress}%` }}
+                                />
+                            </div>
+
+                            <h2 className="mt-6 text-base sm:text-lg font-bold leading-relaxed text-gray-900">
+                                {currentQuestion?.question}
+                            </h2>
+
+                            <div className="mt-5 space-y-2.5">
+                                {currentQuestion?.options.map((option, index) => {
+                                    const isSelected = selectedAnswer === index;
+                                    return (
+                                        <button
+                                            key={index}
+                                            type="button"
+                                            onClick={() => selectAnswer(index)}
+                                            className={`flex w-full items-center justify-between rounded-xl border p-4 text-left text-xs sm:text-sm transition ${
+                                                isSelected
+                                                    ? "border-teal-600 bg-teal-50 text-teal-900 font-medium"
+                                                    : "border-stone-200 bg-stone-50/50 text-gray-800 hover:border-teal-200 hover:bg-teal-50/30"
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-3">
+                                                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                                                    isSelected
+                                                        ? "bg-teal-700 text-white"
+                                                        : "bg-stone-200 text-gray-700"
+                                                }`}>
+                                                    {String.fromCharCode(65 + index)}
+                                                </span>
+                                                <span>{option}</span>
+                                            </span>
+
+                                            {isSelected && <CheckCircle2 size={18} className="text-teal-700 shrink-0" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="mt-6 flex items-center justify-between gap-3 border-t border-stone-100 pt-5">
+                                <button
+                                    type="button"
+                                    onClick={goPrevious}
+                                    disabled={currentIndex === 0}
+                                    className="rounded-xl border border-stone-200 px-4 py-2 text-xs sm:text-sm font-semibold text-gray-600 transition hover:bg-stone-50 disabled:opacity-30"
+                                >
+                                    Previous
+                                </button>
+
+                                {currentIndex === questions.length - 1 ? (
+                                    <button
+                                        type="button"
+                                        onClick={handleSubmit}
+                                        disabled={selectedAnswer === undefined}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-xs sm:text-sm font-semibold text-white transition hover:bg-teal-800 disabled:opacity-40"
+                                    >
+                                        Submit Answers
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={goNext}
+                                        disabled={selectedAnswer === undefined}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-xs sm:text-sm font-semibold text-white transition hover:bg-teal-800 disabled:opacity-40"
+                                    >
+                                        Next Question
+                                        <ChevronRight size={17} />
+                                    </button>
+                                )}
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                <p className="mt-5 text-center text-[11px] text-gray-400">
+                    LearnLite AI &bull; All practice quizzes and answer keys stored locally on this device
+                </p>
             </section>
         </main>
     );

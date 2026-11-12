@@ -21,6 +21,8 @@ import TextPanel from "../ingest/TextPanel";
 import ProcessingScreen from "../processing/ProcessingScreen";
 import { saveLibraryMaterial, saveGeneratedResource } from "@/lib/library";
 import { api, type StudyPack } from "@/lib/api";
+import { downloadStudyPackFile } from "@/lib/exportStudyPack";
+import { Download } from "lucide-react";
 
 type Mode = "upload" | "snap" | "text";
 type Phase = "pick" | "processing" | "done";
@@ -272,6 +274,20 @@ export default function IngestPicker() {
                                     <ClipboardList size={17} />
                                     Take Quiz
                                 </Link>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (latestPack) {
+                                        downloadStudyPackFile(latestPack, "txt");
+                                        toast.success("Study Pack downloaded to device for offline study!");
+                                    }
+                                }}
+                                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-50 py-3 text-sm font-semibold text-teal-800 transition hover:bg-teal-100"
+                            >
+                                <Download size={17} />
+                                Download Pack for Offline Study (.txt)
+                            </button>
                             </div>
 
                             <button
